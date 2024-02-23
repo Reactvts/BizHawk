@@ -40,7 +40,7 @@ namespace BizHawk.Client.Common
 			int? socketPort = null;
 			string? socketIP = null;
 			string? mmfFilename = null;
-			string? urlGet = null;
+			string? urlGet = "http://localhost/";
 			string? urlPost = null;
 			bool? audiosync = null;
 			string? openExtToolDll = null;
