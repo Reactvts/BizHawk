@@ -1,4 +1,9 @@
-# BizHawk
+# BizHawk with WebSockets & HTTP Enabled (No Command Line options required)
+
+**Notes: For the purposes of my project, I needed Web Sockets enabled, which was already in BizHawk but behind a build flag, and required some updates thanks to jtigues pull request**
+**his pull request can be found [here](https://github.com/TASEmulators/BizHawk/pull/3773)**
+**I also force a http get url so that there's no need to add any command line options to run my lua scripts**
+
 
 A multi-system emulator written in C#. As well as quality-of-life features for casual players, it also has recording/playback and debugging tools, making it the first choice for TASers (Tool-Assisted Speedrunners).
 
