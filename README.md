@@ -1,8 +1,42 @@
-# BizHawk with WebSockets & HTTP Enabled (No Command Line options required)
+# BizHawk with WebSockets & HTTP Enabled (No Command Line options required) + Reactvts.com LUA Scripts
 
 **Notes: For the purposes of my project, I needed Web Sockets enabled, which was already in BizHawk but behind a build flag, and required some updates thanks to jtigues pull request**
 **his pull request can be found [here](https://github.com/TASEmulators/BizHawk/pull/3773)**
 **I also force a http get url so that there's no need to add any command line options to run my lua scripts**
+**Below you will find the Bizhawk Readme since most of the content is the same**
+
+
+## Reactvts BETA V0.5
+
+### Current Available Acivitiy
+
+#### Video Armageddon
+
+Race with up to 2 friends in Mario 3 points race inspired by the movie "The Wizard"
+
+**Host**
+Start a room by going to https://reactvts.com/video-armageddon/
+
+**Players** 
+Start Bizhawk using "Reactvts.bat" file in the root and enter the your name and room code. 
+
+Race Items: Hit Select to spend 10 coins to buy a Mario Kart Item, hit select again to fire it. 
+
+Red and Green Shells: Hit the players directly ahead of you in points. Red shells do 2 damage (i.e. Racoon to Small Mario), Green sheels do 1 (Racoon to Big Mario)
+Bananas: Stun Players behind and blocks shells
+Lightning: Makes everyone else slower for a few seconds
+Star: Gives you a Star in the game
+Mushroom: Gives you a speed boost for a few seconds
+
+
+
+
+
+-- Bizhawk Readme Bellow --
+
+
+
+
 
 
 A multi-system emulator written in C#. As well as quality-of-life features for casual players, it also has recording/playback and debugging tools, making it the first choice for TASers (Tool-Assisted Speedrunners).
