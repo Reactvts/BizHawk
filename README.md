@@ -32,7 +32,7 @@ Mushroom: Gives you a speed boost for a few seconds
 
 
 
--- Bizhawk Readme Bellow --
+**Bizhawk Readme Bellow**
 
 
 
