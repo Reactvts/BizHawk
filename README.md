@@ -10,7 +10,7 @@
 
 ### Current Available Acivitiy
 
-#### Video Armageddon
+#### Video Armageddon V0.5
 
 Race with up to 2 friends in Mario 3 points race inspired by the movie "The Wizard"
 
