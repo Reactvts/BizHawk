@@ -81,6 +81,10 @@ namespace BizHawk.Client.Common
 		void PauseEmulator();
 
 		/// <remarks>only referenced from <c>EmuClientApi</c></remarks>
+		
+		void PlaySound(string path, float volume, float speed);
+
+
 		bool RebootCore();
 
 		/// <remarks>only referenced from <c>EmuClientApi</c></remarks>

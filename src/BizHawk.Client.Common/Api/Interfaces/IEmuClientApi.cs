@@ -97,6 +97,8 @@ namespace BizHawk.Client.Common
 
 		void PauseAv();
 
+		void PlaySound(string path, float volume, float speed);
+
 		void RebootCore();
 
 		void SaveRam();

@@ -237,12 +237,12 @@ namespace BizHawk.Client.EmuHawk
 			_outputDevice.WriteSamples(samples, sampleOffset, sampleCount);
 		}
 
-		public void PlayWavFile(Stream wavFile, float atten)
+		public void PlayWavFile(Stream wavFile, float atten, float speed)
 		{
 			if (atten <= 0) return;
 			try
 			{
-				_outputDevice.PlayWavFile(wavFile, Math.Min(atten, 1));
+				_outputDevice.PlayWavFile(wavFile, Math.Min(atten, 1), speed);
 			}
 			catch (Exception e)
 			{

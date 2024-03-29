@@ -156,6 +156,14 @@ namespace BizHawk.Client.Common
 		public bool GetSoundOn()
 			=> APIs.EmuClient.GetSoundOn();
 
+
+		[LuaMethodExample("client.PlaySound(\"bark.wav\",1, 1.5)")]
+		[LuaMethod("PlaySound", "Plays a wav file, add a number to change the volume and frequency")]
+		public void PlaySound(string path, float volume, float speed)
+		{
+			this.APIs.EmuClient.PlaySound(path, volume, speed);
+		}
+
 		[LuaMethodExample("client.SetClientExtraPadding( 5, 10, 15, 20 );")]
 		[LuaMethod("SetClientExtraPadding", "Sets the extra padding added to the 'native' surface so that you can draw HUD elements in predictable placements")]
 		public void SetClientExtraPadding(int left, int top, int right, int bottom)

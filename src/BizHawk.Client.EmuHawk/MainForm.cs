@@ -4749,6 +4749,38 @@ namespace BizHawk.Client.EmuHawk
 		public void StartSound() => Sound.StartSound();
 		public void StopSound() => Sound.StopSound();
 
+		private Dictionary<string, MemoryStream> Sounds = new Dictionary<string, MemoryStream>();
+
+		private static MemoryStream ReadWavFile(string path)
+		{
+			try
+			{
+				return new(File.ReadAllBytes(Path.Combine(PathUtils.ExeDirectoryPath, path)), false);
+			}
+			catch
+			{
+				return null;
+			}
+		}
+
+		public void PlaySound(string path, float volume = 1, float speed = 1)
+		{
+
+
+			if (Sounds.TryGetValue(path, out MemoryStream wavFile))
+			{
+				wavFile.Position = 0;
+				Sound.PlayWavFile(wavFile, volume, speed);
+				Console.WriteLine(string.Format("Play Sound {0} = {1}", path, Sounds[path]));
+			}
+			else
+			{
+				Console.WriteLine("Add Sound " + path);
+				Sounds.Add(path, ReadWavFile(path));
+				Sound.PlayWavFile(Sounds[path], volume, speed);
+			}
+		}
+
 		private Mutex _singleInstanceMutex;
 		private NamedPipeServerStream _singleInstanceServer;
 		private readonly List<string[]> _singleInstanceForwardedArgs = new();
@@ -4900,7 +4932,7 @@ namespace BizHawk.Client.EmuHawk
 				InputManager,
 				Tools,
 				() => Config,
-				wavFile => Sound.PlayWavFile(wavFile, 1), // TODO: Make this configurable
+				wavFile => Sound.PlayWavFile(wavFile, 1 , 1), // TODO: Make this configurable
 				RetroAchievementsMenuItem.DropDownItems,
 				() =>
 				{

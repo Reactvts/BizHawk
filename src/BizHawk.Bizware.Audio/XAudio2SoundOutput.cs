@@ -170,12 +170,13 @@ namespace BizHawk.Bizware.Audio
 			_wavBuffer = null;
 		}
 
-		public void PlayWavFile(Stream wavFile, double volume)
+		public void PlayWavFile(Stream wavFile, double volume, double speed)
 		{
 			using var wavStream = new SDL2WavStream(wavFile);
+			int frequency = (int)(wavStream.Frequency * speed);
 			var format = wavStream.Format == SDL2WavStream.AudioFormat.F32LSB
-				? WaveFormat.CreateIeeeFloatWaveFormat(wavStream.Frequency, wavStream.Channels)
-				: new(wavStream.Frequency, wavStream.BitsPerSample, wavStream.Channels);
+				? WaveFormat.CreateIeeeFloatWaveFormat(frequency, wavStream.Channels)
+				: new(frequency, wavStream.BitsPerSample, wavStream.Channels);
 
 			StopWav();
 			_wavVoice = _device.CreateSourceVoice(format);

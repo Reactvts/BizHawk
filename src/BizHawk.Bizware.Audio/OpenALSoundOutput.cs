@@ -187,9 +187,10 @@ namespace BizHawk.Bizware.Audio
 			}
 		}
 
-		public void PlayWavFile(Stream wavFile, double volume)
+		public void PlayWavFile(Stream wavFile, double volume, double speed)
 		{
 			using var wavStream = new SDL2WavStream(wavFile);
+			int frequency = (int)(wavStream.Frequency * speed);
 			if (wavStream.Channels > 2)
 			{
 				throw new NotSupportedException("OpenAL does not support more than 2 channels");
@@ -217,7 +218,7 @@ namespace BizHawk.Bizware.Audio
 				EndiannessUtils.MutatingByteSwap16(tempBuffer);
 			}
 
-			_al.BufferData(_wavBufferID, format, tempBuffer, wavStream.Frequency);
+			_al.BufferData(_wavBufferID, format, tempBuffer, frequency);
 			_al.SetSourceProperty(_wavSourceID, SourceFloat.Gain, (float)volume);
 			unsafe
 			{
