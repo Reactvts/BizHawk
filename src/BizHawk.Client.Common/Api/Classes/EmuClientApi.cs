@@ -144,6 +144,12 @@ namespace BizHawk.Client.Common
 
 		public void PauseAv() => _mainForm.PauseAvi = true;
 
+		public void PlaySound(string path, float volume, float speed)
+		{
+			_mainForm.PlaySound(path, volume, speed);
+		}
+
+
 		public void RebootCore() => _mainForm.RebootCore();
 
 		public void SaveRam() => _mainForm.FlushSaveRAM();

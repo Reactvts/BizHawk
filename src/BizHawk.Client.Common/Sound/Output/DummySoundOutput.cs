@@ -78,7 +78,7 @@ namespace BizHawk.Client.Common
 			_remainingSamples += sampleCount;
 		}
 
-		public void PlayWavFile(Stream wavFile, double volume)
+		public void PlayWavFile(Stream wavFile, double volume, double speed)
 		{
 		}
 	}
