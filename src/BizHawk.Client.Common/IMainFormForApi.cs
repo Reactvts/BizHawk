@@ -37,7 +37,7 @@ namespace BizHawk.Client.Common
 		void ClearHolds();
 
 		/// <remarks>only referenced from <c>EmuClientApi</c></remarks>
-		void ClickSpeedItem(int num);
+		void ClickSpeedItem(int num, bool show);
 
 		/// <remarks>only referenced from <c>EmuClientApi</c></remarks>
 		void CloseEmulator(int? exitCode = null);

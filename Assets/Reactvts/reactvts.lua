@@ -4,8 +4,9 @@ local videoArmageddon = require('Activities/videoArmageddon')
 print(videoArmageddon)
 
 config = {
-    ["name"] = "",
-    ["roomcode"] = "",
+    ["name"] = "Seve",
+    ["roomcode"] = "KWLA",
+    ["volume"] = 7,
     ["ws_id"] = null,
     ["socket_id"] = null,
     ["auth"] = null,
@@ -171,6 +172,23 @@ forms.label(setup_window, "(4 Letter Room Code)", 200, y+3, 120, 20)
 roomcode_text = forms.textbox(setup_window, 0, 100, 20, null, 90, y)
 forms.settext(roomcode_text, config.roomcode)
 y = y + 20
+forms.label(setup_window, "Volume:", 37, y+3, 52, 20)
+forms.label(setup_window, "(Item Sounds Only)", 200, y+3, 120, 20)
+local volume_drop = forms.dropdown(setup_window, {   
+    " 0", 
+    " 1", 
+    " 2",
+    " 3",
+    " 4",
+    " 5", 
+    " 6",
+    " 7",
+    " 8",
+    " 9",
+    "10"
+}, 90, y, 100, 20);
+forms.settext(volume_drop, " 7")
+y = y + 20
 connect_btn = forms.button(setup_window, button_text, connectToWSS, 20, y + 3, 300, 20)
 y = y + 25
 
@@ -180,7 +198,7 @@ console_window = forms.textbox( setup_window, "", 300, 80, null, 20, y, true, fa
 local function sendShell()
     print("Sending Shell")
     videoArmageddon.receive(
-        {["item"] = 'greenShell', ['action'] = 'item', ["name"] = "all"}, config)
+        {["item"] = 'redShell', ['action'] = 'item', ["name"] = "all"}, config)
 end
 
 shell_btn = forms.button(setup_window, "Send Shell", sendShell, 20, y + 90, 300, 20)
@@ -201,7 +219,9 @@ local frame_count = 0
 
 
 while true do
+    
     frame_count = frame_count + 1
+    config.volume= forms.gettext(volume_drop) / 10 
     if config.ws_id ~= null then
         ws_watch(config.ws_id, frame_count)
         if connectionStatus == "subscribed" then

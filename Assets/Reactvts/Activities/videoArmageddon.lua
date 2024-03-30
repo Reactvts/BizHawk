@@ -10,6 +10,7 @@ prevRoom = null
 is_frozen = false
 speed = 100
 last_song = 0
+last_score = 0
 level_finished = false
 
 -- Item Variables
@@ -45,7 +46,9 @@ function isInvincible()
 	return (memory.read_u8(0x0552, "RAM") + 
 	memory.read_u8(0x0553, "RAM") + 
 	memory.read_u8(0x055a, "RAM") +
-	memory.read_u8(0x0559, "RAM") 	
+	memory.read_u8(0x0559, "RAM") +
+	memory.read_u8(0x05f3, "RAM")
+	
 ) > 0 
 end
 
@@ -127,7 +130,7 @@ function load_game(g)
 		log_console(string.format('ROM loaded: %s "%s" (%s)', emu.getsystemid(), gameinfo.getromname(), gameinfo.getromhash()))
 		client.reboot_core( );
 		activity.initalized = true
-
+		client.enablerewind(false)
 		return true
 	else
 		log_console(string.format('Failed to open ROM "%s"', g))
@@ -156,6 +159,7 @@ function activity.frame(frame_count, config)
 	end
 	if activity.initalized == true and is_rom_loaded() and racing then
 		gui.clearGraphics()
+		client.speedmode(speed, false)
 
 		local input = memory.readbyte(0x17)
 		if selectCooldown > 0 then
@@ -195,25 +199,25 @@ function activity.frame(frame_count, config)
 
 						itemFrame = 90
 						gui.clearGraphics()
-						client.PlaySound('./Reactvts/Activities/assets/itemBox.wav', 2, 1)
+						client.PlaySound('./Reactvts/Activities/assets/itemBox.wav', config.volume, 1)
 					end
 				elseif itemStatus == 'hasitem' then
 					print(item[1])
 					if(item[1] == 'star') then
 						memory.writebyte(0x03f2, 0x01)
 					elseif item[1] == 'mushroom' then
-						client.speedmode(150)
+						speed = 150
 						itemEffect = 'mushroom'
-						client.PlaySound('./Reactvts/Activities/assets/boost.wav', 2, 1)
+						client.PlaySound('./Reactvts/Activities/assets/boost.wav', config.volume, 1)
 						itemEffectFrame = 60 * 15
 					elseif item[1] == 'banana' and #attackQueue > 0 and (attackQueue[1].name == 'greenShell' or attackQueue[1].name == 'redShell') then
-						client.PlaySound('./Reactvts/Activities/assets/shellbounce.wav', 2, 1)
+						client.PlaySound('./Reactvts/Activities/assets/shellbounce.wav', config.volume, 1)
 						table.remove(attackQueue, 1)
 					else
 						local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"throw","item":"%s"},"channel":"presence-%s"}',
 						config.user_id, config.name, item[1], config.roomcode)
 						comm.ws_send(config.ws_id, sendString , true)
-						client.PlaySound('./Reactvts/Activities/assets/fire.wav', 2, 1)
+						client.PlaySound('./Reactvts/Activities/assets/fire.wav', config.volume, 1)
 					end
 					itemStatus = 'empty'
 					gui.clearGraphics()
@@ -221,7 +225,7 @@ function activity.frame(frame_count, config)
 				selectCooldown = 30
 			end
 		end
-		
+		gui.drawImageRegion('./Activities/assets/itemBox.png', 0, 0, itemWidth, itemHeight * 2, 0, 0, itemWidth, itemHeight * 2)
 		if itemStatus == 'spin' then
 			itemFrame = itemFrame - 1
 			
@@ -255,10 +259,10 @@ function activity.frame(frame_count, config)
 			itemEffectFrame = itemEffectFrame - 1
 			if itemEffectFrame <= 0 then
 				if(itemEffect == 'mushroom') then
-					client.speedmode(100)
+					speed = 100
 				end
 				if(itemEffect == 'lightning') then
-					client.speedmode(100)
+					speed = 100
 				end
 				itemEffect = null
 			end
@@ -274,14 +278,14 @@ function activity.frame(frame_count, config)
 				local x = client.bufferwidth() - itemWidth
 				gui.drawImageRegion('./Activities/assets/items.png', itemChoices[attack.itemIndex][2] * itemWidth, itemChoices[attack.itemIndex][3] * itemHeight, itemWidth, itemHeight, x, y, itemWidth, itemHeight)
 				if shellSound == false then
-					client.PlaySound('./Reactvts/Activities/assets/shell.wav', 1, 1)
+					client.PlaySound('./Reactvts/Activities/assets/shell.wav', config.volume, 1)
 					shellSound = true
 				end
 			else 
 				local x = 0
 				gui.drawImageRegion('./Activities/assets/items.png', itemChoices[attack.itemIndex][2] * itemWidth, itemChoices[attack.itemIndex][3] * itemHeight, itemWidth, itemHeight, x , y, itemWidth, itemHeight)
 				if shellSound == false then
-					client.PlaySound('./Reactvts/Activities/assets/shell.wav', 1, 1)
+					client.PlaySound('./Reactvts/Activities/assets/shell.wav', config.volume, 1)
 					shellSound = true
 				end
 			end
@@ -292,43 +296,56 @@ function activity.frame(frame_count, config)
 				if isInvincible() == false then
 					if attack.name == 'lightning' then
 						itemEffect = 'lightning'
-						client.speedmode(50)
+						speed = 50
 						itemEffectFrame = 60 * 2
-						client.PlaySound('./Reactvts/Activities/assets/lightning.wav', 2, 1)
+						client.PlaySound('./Reactvts/Activities/assets/lightning.wav', config.volume, 1)
 					end
-					if attack.name == 'redShell' then
-						if memory.read_u8(0x00ed, "RAM") > 1 then
-							memory.write_u8(0x0578, 01, "RAM") -- Make Small
-							client.PlaySound('./Reactvts/Activities/assets/spin.wav', 1, 1)
-							memory.write_u8(0x04f1, 0x10, "RAM")
-							memory.write_u8(0x0551, 0x26, "RAM") -- shrink animation
-							memory.write_u8(0x0552, 0x70, "RAM") --iframes
-						else 
-							memory.write_u8(0xb4, 0xC0, 'RAM') -- Kill
-						end
-					end
-					if attack.name == 'greenShell' then
+					-- if attack.name == 'redShell' then
+					-- 	if memory.read_u8(0x00ed, "RAM") > 1 then
+					-- 		memory.write_u8(0x0578, 01, "RAM") -- Make Small
+					-- 		client.PlaySound('./Reactvts/Activities/assets/spin.wav', config.volume, 1)
+					-- 		memory.write_u8(0x04f1, 0x10, "RAM")
+					-- 		memory.write_u8(0x0551, 0x26, "RAM") -- shrink animation
+					-- 		memory.write_u8(0x0552, 0x70, "RAM") --iframes
+					-- 	else 
+					-- 		memory.write_u8(0xb4, 0xC0, 'RAM') -- Kill
+					-- 	end
+					-- end
+					if attack.name == 'greenShell' or attack.name == 'redShell' then
 						local currentPowerup = memory.read_u8(0x00ed, "RAM")
-						if currentPowerup > 0 then
-							
-							client.PlaySound('./Reactvts/Activities/assets/spin.wav', 1, 1)
-							memory.write_u8(0x04f1, 0x10, "RAM")
-							print(currentPowerup)
-							if currentPowerup == 1 then
-								memory.write_u8(0x0551, 0x26, "RAM") -- shrink animation
-								memory.write_u8(0x0578, 1, "RAM") -- Make Smaller
-							else 
-								memory.write_u8(0x0554, 0x10, "RAM") -- poof animation
-								memory.write_u8(0x0578, 2, "RAM") -- Make Smaller
-							end
-							memory.write_u8(0x0552, 0x70, "RAM") --iframes
+
+						if attack.name == 'greenShell' and memory.read_u8(0x00d8) ~= 0 then -- jumping over item
+							local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"throw","item":"%s"},"channel":"presence-%s"}',
+							config.user_id, config.name, 'greenShell', config.roomcode)
+							comm.ws_send(config.ws_id, sendString , true)
 						else 
-							memory.write_u8(0xb4, 0xC0, 'RAM') -- Kill
+							if currentPowerup > 0 then
+								client.PlaySound('./Reactvts/Activities/assets/spin.wav', config.volume, 1)
+								memory.write_u8(0x04f1, 0x10, "RAM")
+								if currentPowerup == 1 then
+									memory.write_u8(0x0551, 0x26, "RAM") -- shrink animation
+									memory.write_u8(0x0578, 1, "RAM") -- Make Smaller
+								else 
+									memory.write_u8(0x0554, 0x10, "RAM") -- poof animation
+									memory.write_u8(0x0578, 2, "RAM") -- Make Smaller
+								end
+								memory.write_u8(0x0552, 0x70, "RAM") --iframes
+							else 
+								-- memory.write_u8(0xb4, 0xC0, 'RAM') -- Kill
+								client.PlaySound('./Reactvts/Activities/assets/spin.wav', config.volume, 1)
+								memory.write_u8(0x0554, 0x50, "RAM") -- poof animation
+							end
 						end
 					end
 					if attack.name == 'banana' then
-						client.PlaySound('./Reactvts/Activities/assets/spin.wav', 1, 1)
-						memory.write_u8(0x0554, 0x50, "RAM") -- poof animation
+						if memory.read_u8(0x00d8) ~= 0 then -- jumping over item
+							local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"throw","item":"%s"},"channel":"presence-%s"}',
+							config.user_id, config.name, 'banana', config.roomcode)
+							comm.ws_send(config.ws_id, sendString , true)
+						else 
+							client.PlaySound('./Reactvts/Activities/assets/spin.wav', config.volume, 1)
+							memory.write_u8(0x0554, 0x50, "RAM") -- poof animation
+						end
 					end
 				end
 				table.remove(attackQueue, 1)
@@ -353,7 +370,7 @@ function activity.frame(frame_count, config)
 				end
 				is_frozen = false
 				
-				client.speedmode(speed)
+				
 				effectTimer = -1
 			end
 		end
@@ -377,6 +394,15 @@ function activity.frame(frame_count, config)
 			if(hexScore ~= preHexScore) then
 				preHexScore = hexScore
 				score = tonumber(hexScore)
+				if score < last_score then -- loaded savestate
+					memory.write_u8(0x0016, 0x01, "RAM")
+					memory.write_u8(0x04f4, 0xf0, "RAM")
+					memory.write_u8(0x0559, 0xff, "RAM")
+					memory.write_u8(0x0715, 0x00, "RAM")
+					memory.write_u8(0x0716, 0x00, "RAM")
+					memory.write_u8(0x0717, 0x00, "RAM")					
+				end
+				last_score = score
 				local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"update","score":"%s"},"channel":"presence-%s"}',
 				config.user_id, config.name, score .. '0', config.roomcode)
 				comm.ws_send(config.ws_id, sendString , true)
@@ -411,7 +437,7 @@ function activity.frame(frame_count, config)
 			-- 	memory.write_u8(0x0736, lives, "RAM")
 			-- 	memory.write_u8(0x0578, powerup, "RAM")
 			-- 	speed = speed * 1.25
-			-- 	client.speedmode(speed)
+			-- 	client.speedmode(speed, false)
 			-- 	client.unpause()
 			-- end
 		end
@@ -461,13 +487,13 @@ function activity.receive(data, config)
 		if data.action == "slow" then
 			print('Slow')
 			is_frozen = false
-			client.speedmode(speed / 2)
+			speed = 50
 			effectTimer = tonumber(data.length) * 60 / 2 -- Game time runs half as long since half the speed
 		end
 		if data.action == "fast" then
 			print('Speed')
 			is_frozen = false
-			client.speedmode(speed * 1.5)
+			speed = 150
 			effectTimer = tonumber(data.length) * 60 * 1.5 -- Game time runs 1.5 times as long since 1.5 times the speed
 		end
 		if data.action == "lives" then

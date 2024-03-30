@@ -1498,15 +1498,15 @@ namespace BizHawk.Client.EmuHawk
 			Tools.Load<LuaConsole>();
 		}
 
-		public void ClickSpeedItem(int num)
+		public void ClickSpeedItem(int num, bool show = true)
 		{
 			if ((ModifierKeys & Keys.Control) != 0)
 			{
-				SetSpeedPercentAlternate(num);
+				SetSpeedPercentAlternate(num, show);
 			}
 			else
 			{
-				SetSpeedPercent(num);
+				SetSpeedPercent(num, show);
 			}
 		}
 
@@ -2332,18 +2332,24 @@ namespace BizHawk.Client.EmuHawk
 			_throttle.SetSpeedPercent(speedPercent);
 		}
 
-		private void SetSpeedPercentAlternate(int value)
+		private void SetSpeedPercentAlternate(int value, bool showMessage = true)
 		{
 			Config.SpeedPercentAlternate = value;
 			SyncThrottle();
-			AddOnScreenMessage($"Alternate Speed: {value}%");
+			if (showMessage)
+			{
+				AddOnScreenMessage($"Alternate Speed: {value}%");
+			}
 		}
 
-		private void SetSpeedPercent(int value)
+		private void SetSpeedPercent(int value, bool show = true)
 		{
 			Config.SpeedPercent = value;
 			SyncThrottle();
-			AddOnScreenMessage($"Speed: {value}%");
+			if (show)
+			{
+				AddOnScreenMessage($"Speed: {value}%");
+			}
 		}
 
 		private void Shutdown()

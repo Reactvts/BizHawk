@@ -210,9 +210,9 @@ namespace BizHawk.Client.Common
 			}
 		}
 
-		public void SpeedMode(int percent)
+		public void SpeedMode(int percent, bool show = true)
 		{
-			if (percent is > 0 and <= 6400) _mainForm.ClickSpeedItem(percent);
+			if (percent is > 0 and <= 6400) _mainForm.ClickSpeedItem(percent, show);
 			else _logCallback("Invalid speed value");
 		}
 

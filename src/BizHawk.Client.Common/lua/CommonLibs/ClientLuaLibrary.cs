@@ -283,10 +283,10 @@ namespace BizHawk.Client.Common
 		public void SetWindowSize(int size)
 			=> APIs.EmuClient.SetWindowSize(size);
 
-		[LuaMethodExample("client.speedmode( 75 );")]
-		[LuaMethod("speedmode", "Sets the speed of the emulator (in terms of percent)")]
-		public void SpeedMode(int percent)
-			=> APIs.EmuClient.SpeedMode(percent);
+		[LuaMethodExample("client.speedmode( 75, false );")]
+		[LuaMethod("speedmode", "Sets the speed of the emulator (in terms of percent) (send false to hide notification)")]
+		public void SpeedMode(int percent, bool show = true)
+			=> APIs.EmuClient.SpeedMode(percent, show);
 
 		[LuaMethodExample("local curSpeed = client.getconfig().SpeedPercent")]
 		[LuaMethod("getconfig", "gets the current config settings object")]

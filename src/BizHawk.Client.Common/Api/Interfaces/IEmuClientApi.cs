@@ -149,7 +149,7 @@ namespace BizHawk.Client.Common
 
 		void SetWindowSize(int size);
 
-		void SpeedMode(int percent);
+		void SpeedMode(int percent, bool show = true);
 
 		void TogglePause();
 
