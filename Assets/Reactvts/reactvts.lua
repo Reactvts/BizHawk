@@ -4,6 +4,8 @@ local videoArmageddon = require('Activities/videoArmageddon')
 
 local currentActivity = null
 
+version = '2.9.1.4'
+
 
 
 config = {
@@ -15,6 +17,7 @@ config = {
     ["socket_id"] = null,
     ["auth"] = null,
     ["user_id"] = null,
+    ["version"] = version,
     ["connectionStatus"] = "Not Connected",
     ['auth'] = null
 }
@@ -61,7 +64,7 @@ local function connectToWSS()
         ["event"] = "pusher:subscribe",
         ["data"] = {
             ["auth"] = config.auth,
-            ["channel_data"] = "{\"user_id\":\"" .. config.user_id .. "\",\"user_info\":{\"type\":\"client\",\"name\":\"" .. config.name .. "\"}}",
+            ["channel_data"] = "{\"user_id\":\"" .. config.user_id .. "\",\"user_info\":{\"type\":\"client\",\"name\":\"" .. config.name .. "\":\"version\":\"" .. config.version .. "\"}}",
             ["channel"] = "presence-" .. string.upper(config.roomcode),
             
         }
@@ -137,7 +140,21 @@ local function ws_watch (ws_id, frame_count)
                     if(response.data.name == config.name) then
                         setConnectionStatus("Not Connected")
                         print_log("Room is full")
+                        config.ws_id = null
                         forms.settext(connect_btn, "Connect")
+                        gui.drawString(client.bufferwidth / 2, client.bufferheight / 2, "Sorry: Room is full or locked", 0xFFFFFF00, 0x00000000, 16, "Arial", "bold", "center", "bottom" );
+                        client.pause()
+                        return
+                    end
+                end
+                if response.event == "client-message_mismatch" then
+                    if(response.data.name == config.name) then
+                        setConnectionStatus("Not Connected")
+                        print_log("Wrong version of Bizhawk. Please visit reactvts.com/join-va to get latest version of bizhawk")
+                        config.ws_id = null
+                        forms.settext(connect_btn, "Connect")
+                        gui.drawString(client.bufferwidth / 2, client.bufferheight / 2, "reactvts.com/join-va to get latest version of bizhawk ", 0xFFFFFF00, 0x00000000, 16, "Arial", "bold", "center", "bottom" );
+                        client.pause()
                         return
                     end
                 end
@@ -172,7 +189,7 @@ setup_window = forms.newform(340, 340 , "Reactvts.com | Join Room", main_cleanup
 local picture = forms.pictureBox( setup_window, 0, 0, 340, 50 );
 y = y + 40 
 forms.drawRectangle( picture, 0, 0, 600, 50, "#F6E05E", "#F6E05E");
-forms.drawText( picture, 225, 25, "Reactvts", "black", "#F6E05E", 40, "Inter", "600", "center", "middle" );
+forms.drawText( picture, 225, 25, "Reactvts v" .. version, "black", "#F6E05E", 40, "Inter", "600", "center", "middle" );
 
 forms.label(setup_window, "Name:", 45, y+3, 40, 20)
 name_text = forms.textbox(setup_window, 0, 100, 20, null, 90, y)

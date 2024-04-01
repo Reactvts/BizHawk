@@ -265,8 +265,8 @@ function activity.frame(frame_count, config)
 
 		if memory.read_u8(0x04e4, "RAM") == 0x01 and alive == true  then
 			alive = false
-			local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"died"},"channel":"presence-%s"}',
-			config.user_id, config.name, config.roomcode)
+			local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","version":"%s","action":"died"},"channel":"presence-%s"}',
+			config.user_id, config.name, config.version, config.roomcode)
 			comm.ws_send(config.ws_id, sendString , true)
 		end
 
@@ -290,8 +290,8 @@ function activity.frame(frame_count, config)
 						memory.write_u8(0x7da2, coins, "System Bus")
 						item_status = 'spin'
 						
-						local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"buy"},"channel":"presence-%s"}',
-						config.user_id, config.name, config.roomcode)
+						local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","version":"%s","action":"buy"},"channel":"presence-%s"}',
+						config.user_id, config.name, config.version, config.roomcode)
 						comm.ws_send(config.ws_id, sendString , true)
 
 						item_frame = 90
@@ -311,8 +311,8 @@ function activity.frame(frame_count, config)
 						client.PlaySound('./Reactvts/Activities/assets/shellbounce.wav', config.volume, 1)
 						table.remove(attack_queue, 1)
 					else
-						local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"throw","item":"%s"},"channel":"presence-%s"}',
-						config.user_id, config.name, item[1], config.roomcode)
+						local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","version":"%s","action":"throw","item":"%s"},"channel":"presence-%s"}',
+						config.user_id, config.name, config.version, item[1], config.roomcode)
 						comm.ws_send(config.ws_id, sendString , true)
 						client.PlaySound('./Reactvts/Activities/assets/fire.wav', config.volume, 1)
 					end
@@ -418,8 +418,8 @@ function activity.frame(frame_count, config)
 						local currentPowerup = memory.read_u8(0x00ed, "RAM")
 
 						if attack.name == 'greenShell' and memory.read_u8(0x00d8) ~= 0 then -- jumping over item
-							local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"throw","item":"%s"},"channel":"presence-%s"}',
-							config.user_id, config.name, 'greenShell', config.roomcode)
+							local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","version":"%s","action":"throw","item":"%s"},"channel":"presence-%s"}',
+							config.user_id, config.name, config.version, 'greenShell', config.roomcode)
 							comm.ws_send(config.ws_id, sendString , true)
 						else 
 							if currentPowerup > 0 then
@@ -442,8 +442,8 @@ function activity.frame(frame_count, config)
 					end
 					if attack.name == 'banana' then
 						if memory.read_u8(0x00d8) ~= 0 then -- jumping over item
-							local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"throw","item":"%s"},"channel":"presence-%s"}',
-							config.user_id, config.name, 'banana', config.roomcode)
+							local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","version":"%s","action":"throw","item":"%s"},"channel":"presence-%s"}',
+							config.user_id, config.name, config.version, 'banana', config.roomcode)
 							comm.ws_send(config.ws_id, sendString , true)
 						else 
 							client.PlaySound('./Reactvts/Activities/assets/spin.wav', config.volume, 1)
@@ -482,14 +482,14 @@ function activity.frame(frame_count, config)
 
 
 
-	if frame_count % math.floor(2 + (#players)) == 0 and activity.initalized == true and is_rom_loaded() then
+	if frame_count % math.floor(2 + (#players) * 10) == 0 and activity.initalized == true and is_rom_loaded() then
 		if racing == false then
 			if memory.read_u8(0x7b51, "System Bus") == 55 and memory.read_u8(0x7b50, "System Bus") == 114 then 
 				racing = true
 				-- print('savestate level')
 				-- savestate.save('./race.state')
-				local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"start"},"channel":"presence-%s"}',
-				config.user_id, config.name, config.roomcode)
+				local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","version":"%s","action":"start"},"channel":"presence-%s"}',
+				config.user_id, config.name, config.version, config.roomcode)
 				comm.ws_send(config.ws_id, sendString , true)
 			end
 		else
@@ -506,8 +506,8 @@ function activity.frame(frame_count, config)
 					memory.write_u8(0x0717, 0x00, "RAM")					
 				end
 				last_score = score
-				local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"update","score":"%s"},"channel":"presence-%s"}',
-				config.user_id, config.name, score .. '0', config.roomcode)
+				local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","version":"%s","action":"update","score":"%s"},"channel":"presence-%s"}',
+				config.user_id, config.name, config.version, score .. '0', config.roomcode)
 				comm.ws_send(config.ws_id, sendString , true)
 			end	
 
