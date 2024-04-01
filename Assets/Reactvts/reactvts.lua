@@ -1,11 +1,15 @@
 local json = require('Utils/json')
 local videoArmageddon = require('Activities/videoArmageddon')
+-- local videoArmageddonXX = require('Activities/videoArmageddon20XX') 
 
-print(videoArmageddon)
+local currentActivity = null
+
+
 
 config = {
-    ["name"] = "Seve",
-    ["roomcode"] = "KWLA",
+    ["name"] = "",
+    ["roomcode"] = "",
+    ['game'] = "mario3",
     ["volume"] = 7,
     ["ws_id"] = null,
     ["socket_id"] = null,
@@ -33,10 +37,10 @@ end
 
 local function connectToWSS()
     forms.settext(connect_btn, "Connecting...")
-    if forms.gettext(name_text) == "" or string.len(forms.gettext(roomcode_text)) ~= 4 then
+    if forms.gettext(name_text) == "" or string.len(forms.gettext(name_text)) > 9 or string.len(forms.gettext(roomcode_text)) ~= 4 then
         
         forms.settext(connect_btn, "Connect")
-        print_log('Please enter a name and a 4 letter room code')
+        print_log('Please enter a name (max 9 characters) and a 4 letter room code')
         return
     end
     config.name = forms.gettext(name_text)
@@ -129,10 +133,17 @@ local function ws_watch (ws_id, frame_count)
             
             if fullResponse ~= "" then
                 local response = json.parse(fullResponse)
-                -- print_log("event: " .. response.event)
+                if response.event == "client-message_full" then
+                    if(response.data.name == config.name) then
+                        setConnectionStatus("Not Connected")
+                        print_log("Room is full")
+                        forms.settext(connect_btn, "Connect")
+                        return
+                    end
+                end
+
                 if response.event == "client-message_sent" then
-                    -- print_log(fullResponse)
-                    videoArmageddon.receive(response.data, config)
+                    currentActivity.receive(response.data, config)
                 end
             end
             if frame_count % (60 * 30) == 0 then
@@ -152,12 +163,12 @@ setup_window = null
 connect_btn = null
 button_text = "Connect"
 console_log = ""
-console_window = null
+console_window = null 
 local y = 10
 
 
-
-setup_window = forms.newform(340, 260, "Reactvts.com | Join Room", main_cleanup)
+-- 260
+setup_window = forms.newform(340, 340 , "Reactvts.com | Join Room", main_cleanup)
 local picture = forms.pictureBox( setup_window, 0, 0, 340, 50 );
 y = y + 40 
 forms.drawRectangle( picture, 0, 0, 600, 50, "#F6E05E", "#F6E05E");
@@ -195,13 +206,27 @@ y = y + 25
 -- //forms.textbox(long formhandle, [string caption = nil], [int? width = nil], [int? height = nil], [string boxtype = nil], [int? x = nil], [int? y = nil], [bool multiline = False], [bool fixedwidth = False], [string scrollbars = nil])
 console_window = forms.textbox( setup_window, "", 300, 80, null, 20, y, true, false, "Vertical" );
 
-local function sendShell()
-    print("Sending Shell")
-    videoArmageddon.receive(
-        {["item"] = 'redShell', ['action'] = 'item', ["name"] = "all"}, config)
-end
+-- local function sendShell()
+--     print("Sending Shell")
+--     currentActivity.receive(
+--         {["item"] = 'greenShell', ['action'] = 'item', ["name"] = "all"}, config)
+-- end
+-- local function sendBanana()
+--     print("Sending Banana")
+--     currentActivity.receive(
+--         {["item"] = 'banana', ['action'] = 'item', ["name"] = "all"}, config)
+-- end
+-- local function sendLighting()
+--     print("Sending lighting")
+--     currentActivity.receive(
+--         {["item"] = 'lightning', ['action'] = 'item', ["name"] = "all"}, config)
+-- end
 
-shell_btn = forms.button(setup_window, "Send Shell", sendShell, 20, y + 90, 300, 20)
+-- shell_btn = forms.button(setup_window, "Send Shell", sendShell, 20, y + 90, 300, 20)
+-- y = y + 25
+-- banana_btn = forms.button(setup_window, "Send Banana", sendBanana, 20, y + 90, 300, 20)
+-- y = y + 25
+-- banana_btn = forms.button(setup_window, "Send LIghthing", sendLighting, 20, y + 90, 300, 20)
 
 
 
@@ -216,16 +241,22 @@ end)
 
 local frame_count = 0
 
+if config.name ~= "" and config.roomcode ~= "" then
+    connectToWSS()
+end
 
+currentActivity = videoArmageddon
 
 while true do
+
+    
     
     frame_count = frame_count + 1
     config.volume= forms.gettext(volume_drop) / 10 
     if config.ws_id ~= null then
         ws_watch(config.ws_id, frame_count)
         if connectionStatus == "subscribed" then
-            videoArmageddon.frame(frame_count, config)
+           currentActivity.frame(frame_count, config)
         end
     end
     

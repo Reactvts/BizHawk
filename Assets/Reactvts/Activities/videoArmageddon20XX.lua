@@ -10,14 +10,40 @@ prev_room = null
 is_frozen = false
 speed = 100
 last_song = 0
+score = 0
 last_score = 0
 level_finished = false
 time_left = 0
 players = {}
 player_count = null
 player_position = null
+kill_count = 0
+right_padding = 75
+enemyMemory = {
+	[0] = false,
+	[1] = false,
+	[2] = false,
+	[3] = false,
+	[4] = false,
+	[5] = false,
+	[6] = false,
+	[7] = false,
+	[8] = false, 
+	[9] = false,
+	[10] = false,
+	[11] = false,
+	[12] = false,
+	[13] = false,
+	[14] = false,
+	[15] = false
+}
 
-right_padding = 125 
+
+-- mm3 
+
+progress = {}
+
+
 
 -- Item Variables
 
@@ -48,7 +74,7 @@ local attack_queue = {
 
 alive = true
 
-function isInvincible()
+local function isInvincible()
 	return (memory.read_u8(0x0552, "RAM") + 
 	memory.read_u8(0x0553, "RAM") + 
 	memory.read_u8(0x055a, "RAM") +
@@ -58,7 +84,7 @@ function isInvincible()
 ) > 0 
 end
 
-function getItemByName(value)
+local function getItemByName(value)
     for i, item in ipairs(itemChoices) do
         if item[1] == value then
             return item
@@ -67,7 +93,7 @@ function getItemByName(value)
     return nil
 end
 
-function split (inputstr, sep)
+local function split (inputstr, sep)
 	if sep == nil then
 			sep = "%s"
 	end
@@ -80,7 +106,7 @@ end
 
 
 
-function decToBin(dec)
+local function decToBin(dec)
     local bin = ""
     while dec > 0 do
         bin = tostring(dec % 2) .. bin
@@ -96,7 +122,7 @@ function decToBin(dec)
     return binArray
 end
 
-function getInputs()
+local function getInputs()
     local bin = ""
 	local dec = memory.readbyte(0x17)
     while dec > 0 do
@@ -118,7 +144,7 @@ function log_console(msg)
 end
 
 
-function file_exists(f)
+local function file_exists(f)
 	local p = io.open(f, 'r')
 	if p == nil then return false end
 	io.close(p)
@@ -132,8 +158,8 @@ end
 
 log_console('Waking up the video boss')
 
-function load_game(g)
-	log_console('load_game(' ..  g .. ')')
+local function load_game(g)
+	log_console('load_game(' ..  g .. ') me')
 	-- local filename = GAMES_FOLDER .. '/' .. g
 	local filename = g
 	if not file_exists(filename) then
@@ -149,6 +175,10 @@ function load_game(g)
 		activity.initalized = true
 		client.enablerewind(false)
 		client.SetGameExtraPadding(0,0,right_padding,0)
+		local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"start"},"channel":"presence-%s"}',
+		config.user_id, config.name, config.roomcode)
+		comm.ws_send(config.ws_id, sendString , true)
+		racing = true
 		return true
 	else
 		log_console(string.format('Failed to open ROM "%s"', g))
@@ -157,7 +187,7 @@ function load_game(g)
 
 end
 
-function drawGUI()
+local function drawGUI()
 
 	local x = client.bufferwidth() + right_padding 
 	if player_position ~= null and player_count > 0 then 
@@ -177,7 +207,7 @@ function drawGUI()
 		end
 
 		
-		local youFontSize = 16
+		local youFontSize = 22
 		local themFontSize = 11
 		local yPos = (client.bufferheight() - (((themFontSize + 2) * (endPos - startPos - 1)) + youFontSize + 2)) / 2
 		for i = startPos, endPos do
@@ -228,7 +258,7 @@ function drawGUI()
 	end
 end
 
-function init()
+local function init()
 	log_console('Initializing the video boss')
 	frame_count = 0
 	effect_timer = 0
@@ -238,7 +268,7 @@ function init()
 	player_position = null
 	racing = false
 	connected = false
-	load_game('./Roms/Mario3.nes')
+	load_game('./Roms/megaman3.nes')
 end
 
 function activity.frame(frame_count, config)
@@ -252,23 +282,33 @@ function activity.frame(frame_count, config)
 	if activity.initalized == true and is_rom_loaded() then
 		gui.clearGraphics()
 		drawGUI()
+
+		if memory.read_u8(0x0022, "RAM") > 0 and memory.read_u8(0x0380, "RAM") > 0 then
+			local address = memory.read_u8(0x0022, "RAM") .. '|' .. memory.read_u8(0x0380, "RAM")
+			if progress[address] == null then
+				progress[address] = true
+				score = score + 100
+				print('score ' .. score)
+			end
+		end
+
 	end
 
 	if activity.initalized == true and is_rom_loaded() and racing then
 		
 		client.speedmode(speed, false)
 
-		local input = memory.readbyte(0x17)
+		local input = memory.readbyte(0x16)
 		if select_cooldown > 0 then
 			select_cooldown = select_cooldown - 1
 		end
 
-		if memory.read_u8(0x04e4, "RAM") == 0x01 and alive == true  then
-			alive = false
-			local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"died"},"channel":"presence-%s"}',
-			config.user_id, config.name, config.roomcode)
-			comm.ws_send(config.ws_id, sendString , true)
-		end
+		-- if memory.read_u8(0x04e4, "RAM") == 0x01 and alive == true  then
+		-- 	alive = false
+		-- 	local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"died"},"channel":"presence-%s"}',
+		-- 	config.user_id, config.name, config.roomcode)
+		-- 	comm.ws_send(config.ws_id, sendString , true)
+		-- end
 
 		if alive == false then
 			if memory.read_u8(0x04e4, "RAM") ~= 0x01 then
@@ -282,26 +322,13 @@ function activity.frame(frame_count, config)
 
 		if input ~= 0 then
 			local inputs = decToBin(input)
-			if inputs[3] == 1 and select_cooldown == 0 then
+			if inputs[3] == 1 then
 				if item_status == 'empty' then
-					local coins = memory.read_u8(0x7da2, "System Bus")
-					if coins >= 10 then
-						coins = coins - 10
-						memory.write_u8(0x7da2, coins, "System Bus")
-						item_status = 'spin'
-						
-						local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"buy"},"channel":"presence-%s"}',
-						config.user_id, config.name, config.roomcode)
-						comm.ws_send(config.ws_id, sendString , true)
-
-						item_frame = 90
-						gui.clearGraphics()
-						client.PlaySound('./Reactvts/Activities/assets/itemBox.wav', config.volume, 1)
-					end
+				
 				elseif item_status == 'hasitem' then
 					print(item[1])
 					if(item[1] == 'star') then
-						memory.writebyte(0x03f2, 0x01)
+						-- memory.writebyte(0x03f2, 0x01)
 					elseif item[1] == 'mushroom' then
 						speed = 150
 						item_effect = 'mushroom'
@@ -349,6 +376,8 @@ function activity.frame(frame_count, config)
 			
 			item = getItemByName(next_item)
 			next_item = null
+			kill_count = 0
+			print('reset kill count')
 		end
 		if item_status == 'hasitem' then
 			local x = item[2] * item_width
@@ -459,24 +488,24 @@ function activity.frame(frame_count, config)
 			end
 		end
 		
-		if effect_timer > 0 then
-			effect_timer = effect_timer - 1
-			if is_frozen then
-				memory.write_u8(0x0376, 0x01, "RAM") -- keep pausing the game
-			end
-		else 
-			if effect_timer == 0 then
-				if(is_frozen) then
-					print('Unfreezing')
-					memory.write_u8(0x04f5, last_song, "RAM")
-					memory.write_u8(0x0376, 0x00, "RAM")
-				end
-				is_frozen = false
+		-- if effect_timer > 0 then
+		-- 	effect_timer = effect_timer - 1
+		-- 	if is_frozen then
+		-- 		memory.write_u8(0x0376, 0x01, "RAM") -- keep pausing the game
+		-- 	end
+		-- else 
+		-- 	if effect_timer == 0 then
+		-- 		if(is_frozen) then
+		-- 			print('Unfreezing')
+		-- 			memory.write_u8(0x04f5, last_song, "RAM")
+		-- 			memory.write_u8(0x0376, 0x00, "RAM")
+		-- 		end
+		-- 		is_frozen = false
 				
 				
-				effect_timer = -1
-			end
-		end
+		-- 		effect_timer = -1
+		-- 	end
+		-- end
 
 	end
 
@@ -484,32 +513,60 @@ function activity.frame(frame_count, config)
 
 	if frame_count % math.floor(2 + (#players)) == 0 and activity.initalized == true and is_rom_loaded() then
 		if racing == false then
-			if memory.read_u8(0x7b51, "System Bus") == 55 and memory.read_u8(0x7b50, "System Bus") == 114 then 
-				racing = true
-				-- print('savestate level')
-				-- savestate.save('./race.state')
-				local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"start"},"channel":"presence-%s"}',
-				config.user_id, config.name, config.roomcode)
-				comm.ws_send(config.ws_id, sendString , true)
-			end
+			-- if memory.read_u8(0x7b51, "System Bus") == 55 and memory.read_u8(0x7b50, "System Bus") == 114 then 
+			-- 	racing = true
+			-- 	-- print('savestate level')
+			-- 	-- savestate.save('./race.state')
+			-- 	local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"start"},"channel":"presence-%s"}',
+			-- 	config.user_id, config.name, config.roomcode)
+			-- 	comm.ws_send(config.ws_id, sendString , true)
+			-- end
 		else
-			hexScore = '0x' .. string.format("%02x", memory.read_u8(0x0715, "RAM")) .. string.format("%02x", memory.read_u8(0x0716, "RAM")) .. string.format("%02x", memory.read_u8(0x0717, "RAM"))		
-			if(hexScore ~= preHexScore) then
-				preHexScore = hexScore
-				score = tonumber(hexScore)
-				if score < last_score then -- loaded savestate
-					memory.write_u8(0x0016, 0x01, "RAM")
-					memory.write_u8(0x04f4, 0xf0, "RAM")
-					memory.write_u8(0x0559, 0xff, "RAM")
-					memory.write_u8(0x0715, 0x00, "RAM")
-					memory.write_u8(0x0716, 0x00, "RAM")
-					memory.write_u8(0x0717, 0x00, "RAM")					
-				end
+			
+			if(score ~= last_score) then
+				print('sending score ' .. score)
 				last_score = score
 				local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"update","score":"%s"},"channel":"presence-%s"}',
 				config.user_id, config.name, score .. '0', config.roomcode)
 				comm.ws_send(config.ws_id, sendString , true)
 			end	
+
+			-- check for kills
+			local enemiesOnScreen = 0
+			for i = 0x0,0xf  do
+				if memory.read_u8(0x0310 + i, "RAM") == 0x81 then
+					enemiesOnScreen = enemiesOnScreen + 1
+				end
+		
+
+				if memory.read_u8(0x0310 + i, "RAM") == 0x81 and memory.read_u8(0x0330 + i, "RAM") == 0x7a  then
+					if enemyMemory[i] == false then
+						enemyMemory[i] = true
+						
+						kill_count = kill_count + 1
+						print('kill ' .. kill_count)
+						if kill_count == 10 then
+							item_status = 'spin'
+							print('spin')
+							local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"buy"},"channel":"presence-%s"}',
+							config.user_id, config.name, config.roomcode)
+							comm.ws_send(config.ws_id, sendString , true)
+
+							item_frame = 90
+							gui.clearGraphics()
+							client.PlaySound('./Reactvts/Activities/assets/itemBox.wav', config.volume, 1)
+						end
+					end
+				else
+					enemyMemory[i] = false
+				end
+			end
+			-- if enemiesOnScreen > 0 then
+			-- 	print ('enemiesOnScreen ' .. enemiesOnScreen)
+			-- end
+
+
+
 
 
 			-- local inputs = getInputs()
@@ -564,99 +621,90 @@ function activity.receive(data, config)
 		end
 	return
 	end
-	if data.action == "start" then
-		if savestate.load('./Saves/Mario3.state') then
-			racing = true
-		else 
-			print('Failed to load state')
-		end
-		return
-
-	end
 	if(data.name == 'all' or data.name == config.name) then
 
-		if data.action == "memory" then
-			client.pause()
-			for key, value in pairs(data.memory) do
-				print(key, value[1], value[2], tonumber(value[1],16))
-				-- Remove leading '0x' from the values if present
-				value[1] = string.gsub(value[1], "^0x", "")
-				value[2] = string.gsub(value[2], "^0x", "")
-				-- Write to memory
-				memory.write_u8(tonumber(value[1],16), tonumber(value[2],16), value[3])
-				if(value[1] == "0578") then -- If Powerup, play powerup sound
-					print(memory.read_u8(0x00e1, "RAM") .. ' > ' .. tonumber(value[2],16) )
-					if(memory.read_u8(0x00ed, "RAM") + 1 > tonumber(value[2],16) and tonumber(value[2],16) < 3) then
-						memory.write_u8(0x04f1, 0x10, "RAM")
-					else
-						memory.write_u8(0x04f2, 0x20, "RAM") 
-					end
+		-- if data.action == "memory" then
+		-- 	client.pause()
+		-- 	for key, value in pairs(data.memory) do
+		-- 		print(key, value[1], value[2], tonumber(value[1],16))
+		-- 		-- Remove leading '0x' from the values if present
+		-- 		value[1] = string.gsub(value[1], "^0x", "")
+		-- 		value[2] = string.gsub(value[2], "^0x", "")
+		-- 		-- Write to memory
+		-- 		memory.write_u8(tonumber(value[1],16), tonumber(value[2],16), value[3])
+		-- 		if(value[1] == "0578") then -- If Powerup, play powerup sound
+		-- 			print(memory.read_u8(0x00e1, "RAM") .. ' > ' .. tonumber(value[2],16) )
+		-- 			if(memory.read_u8(0x00ed, "RAM") + 1 > tonumber(value[2],16) and tonumber(value[2],16) < 3) then
+		-- 				memory.write_u8(0x04f1, 0x10, "RAM")
+		-- 			else
+		-- 				memory.write_u8(0x04f2, 0x20, "RAM") 
+		-- 			end
 					
-				end
-			end
-			client.unpause()
-		end
+		-- 		end
+		-- 	end
+		-- 	client.unpause()
+		-- end
 	
-		if data.action == "kill" then
-			print('Kill')
-			is_frozen = false
-			memory.write_u8(0xb4, 0xC0, 'RAM')
-		end
-		if data.action == "pause" then
-			print('Freezing')
-			is_frozen = true
-			last_song = memory.read_u8(0x04e5, "RAM")
-			memory.write_u8(0x04f5, 0x0c, "RAM")
-			effect_timer = tonumber(data.length) * 60
-		end
-		if data.action == "slow" then
-			print('Slow')
-			is_frozen = false
-			speed = 50
-			effect_timer = tonumber(data.length) * 60 / 2 -- Game time runs half as long since half the speed
-		end
-		if data.action == "fast" then
-			print('Speed')
-			is_frozen = false
-			speed = 150
-			effect_timer = tonumber(data.length) * 60 * 1.5 -- Game time runs 1.5 times as long since 1.5 times the speed
-		end
-		if data.action == "lives" then
-			print('lives ' .. data.lives )
-			local lives = memory.read_u8(0x0736, "RAM")
-			if data.lives > 0 then
-				memory.write_u8(0x04f2, 0x40, "RAM") 
-			else 
-				memory.write_u8(0x04f6, 0xd0, "RAM") 
-			end
-			lives = lives + data.lives
-			if lives <= 0 then
-				lives = 0
-				memory.write_u8(0xb4, 0xC0, 'RAM')
-			end
-			memory.write_u8(0x0736, lives, "RAM")
-		end
+		-- if data.action == "kill" then
+		-- 	print('Kill')
+		-- 	is_frozen = false
+		-- 	memory.write_u8(0xb4, 0xC0, 'RAM')
+		-- end
+		-- if data.action == "pause" then
+		-- 	print('Freezing')
+		-- 	is_frozen = true
+		-- 	last_song = memory.read_u8(0x04e5, "RAM")
+		-- 	memory.write_u8(0x04f5, 0x0c, "RAM")
+		-- 	effect_timer = tonumber(data.length) * 60
+		-- end
+		-- if data.action == "slow" then
+		-- 	print('Slow')
+		-- 	is_frozen = false
+		-- 	speed = 50
+		-- 	effect_timer = tonumber(data.length) * 60 / 2 -- Game time runs half as long since half the speed
+		-- end
+		-- if data.action == "fast" then
+		-- 	print('Speed')
+		-- 	is_frozen = false
+		-- 	speed = 150
+		-- 	effect_timer = tonumber(data.length) * 60 * 1.5 -- Game time runs 1.5 times as long since 1.5 times the speed
+		-- end
+		-- if data.action == "lives" then
+		-- 	print('lives ' .. data.lives )
+		-- 	local lives = memory.read_u8(0x0736, "RAM")
+		-- 	if data.lives > 0 then
+		-- 		memory.write_u8(0x04f2, 0x40, "RAM") 
+		-- 	else 
+		-- 		memory.write_u8(0x04f6, 0xd0, "RAM") 
+		-- 	end
+		-- 	lives = lives + data.lives
+		-- 	if lives <= 0 then
+		-- 		lives = 0
+		-- 		memory.write_u8(0xb4, 0xC0, 'RAM')
+		-- 	end
+		-- 	memory.write_u8(0x0736, lives, "RAM")
+		-- end
 
-		if data.action == "get" then
-			print('getItem' .. data.item)
-			next_item = data.item
-		end
+		-- if data.action == "get" then
+		-- 	print('getItem' .. data.item)
+		-- 	next_item = data.item
+		-- end
 
-		if data.action == "item" and (data.name == config.name or data.name == 'all') then
-			if data.item == 'banana' then
-				table.insert(attack_queue, {["name"] = 'banana', ["itemIndex"] = 2 , ["frames"] = 60 * 3})
-			end
-			if data.item == 'greenShell' then
-				table.insert(attack_queue, {["name"] = 'greenShell', ["itemIndex"] = 3 , ["frames"] = 60 * 3})
-			end
-			if data.item == 'redShell' then
-				table.insert(attack_queue, {["name"] = 'redShell', ["itemIndex"] = 4 , ["frames"] = 60 * 3})
-			end
+		-- if data.action == "item" and (data.name == config.name or data.name == 'all') then
+		-- 	if data.item == 'banana' then
+		-- 		table.insert(attack_queue, {["name"] = 'banana', ["itemIndex"] = 2 , ["frames"] = 60 * 3})
+		-- 	end
+		-- 	if data.item == 'greenShell' then
+		-- 		table.insert(attack_queue, {["name"] = 'greenShell', ["itemIndex"] = 3 , ["frames"] = 60 * 3})
+		-- 	end
+		-- 	if data.item == 'redShell' then
+		-- 		table.insert(attack_queue, {["name"] = 'redShell', ["itemIndex"] = 4 , ["frames"] = 60 * 3})
+		-- 	end
 			
-			if data.item == 'lightning' and data.attacker ~= config.name then
-				table.insert(attack_queue, {["name"] = 'lightning', ["itemIndex"] = 5 , ["frames"] = 1})
-			end
-		end
+		-- 	if data.item == 'lightning' and data.attacker ~= config.name then
+		-- 		table.insert(attack_queue, {["name"] = 'lightning', ["itemIndex"] = 5 , ["frames"] = 1})
+		-- 	end
+		-- end
 	end
 end
 
