@@ -8,9 +8,9 @@
 
 ## Reactvts BETA V0.7
 
-### Current Available Acivitiy
+### Current Available Activities
 
-#### Video Armageddon '89 V1.0.0
+#### Video Armageddon '89 V1.2.0
 
 Race with up 89 players in Mario 3 points race inspired by the movie "The Wizard"
 
@@ -18,7 +18,7 @@ Race with up 89 players in Mario 3 points race inspired by the movie "The Wizard
 Start a room by going to https://reactvts.com/video-armageddon/
 
 **Players** 
-Start Bizhawk using "Reactvts.bat" file in the root and enter the your name and room code. 
+Start Bizhawk using "Reactvts.bat" file in the root and enter your name and room code. 
 
 Race up to 89 Players in a Mario Bros 3 Score Race. Spend 10 In-Game Coins to Fire Items at other players by hitting "Select" while dodging theirs. 
 (You are always safe in the Over World Map)
