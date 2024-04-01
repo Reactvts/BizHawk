@@ -6,13 +6,13 @@
 **Below you will find the Bizhawk Readme since most of the content is the same**
 
 
-## Reactvts BETA V0.5
+## Reactvts BETA V0.7
 
 ### Current Available Acivitiy
 
-#### Video Armageddon V0.5
+#### Video Armageddon '89 V1.0.0
 
-Race with up to 2 friends in Mario 3 points race inspired by the movie "The Wizard"
+Race with up 89 players in Mario 3 points race inspired by the movie "The Wizard"
 
 **Host**
 Start a room by going to https://reactvts.com/video-armageddon/
@@ -20,14 +20,39 @@ Start a room by going to https://reactvts.com/video-armageddon/
 **Players** 
 Start Bizhawk using "Reactvts.bat" file in the root and enter the your name and room code. 
 
-Race Items: Hit Select to spend 10 coins to buy a Mario Kart Item, hit select again to fire it. 
+Race up to 89 Players in a Mario Bros 3 Score Race. Spend 10 In-Game Coins to Fire Items at other players by hitting "Select" while dodging theirs. 
+(You are always safe in the Over World Map)
 
-Red and Green Shells: Hit the players directly ahead of you in points. Red shells do 2 damage (i.e. Racoon to Small Mario), Green sheels do 1 (Racoon to Big Mario)
-Bananas: Stun Players behind and blocks shells
-Lightning: Makes everyone else slower for a few seconds
-Star: Gives you a Star in the game
-Mushroom: Gives you a speed boost for a few seconds
+### Items
+**Green Shells**
 
+Green Shells will hit players ahead of you losing any power-ups they've collected. If you're already small, you just get stunned for a moment. 
+
+You can dodge Green shells by jumping just as they are about to hit. If you do dodge the shell, it will continue to the player ahead of you. 
+
+**Red Shells**
+
+Red Shells act like Green Shells but they cannot be dodged. 
+
+**Bananas**
+
+Bananas will temporarily stun players behind you. They can also be fired when a shell is about to hit to knock them out. You can also jump over bananas the same as green shells, and they will continue to the power behind you. 
+
+Bananas and Shells cannot affect you in the Overworld or any other time the in-game timer is frozen. (After beating a boss, mushroom house, etc)
+
+**Mushrooms**
+
+Get a 50% speed boost in the game (but be careful, it's not just Mario, the whole game is running 50% faster)
+
+**Lightning**
+
+Make all the other players lose their currently held items and slow them down for a short time.
+
+**Star**
+
+Give yourself an in-game Star power-up, which makes you invincible to in-game enemies AND player-thrown items.
+
+**Trailer Music: Wavetable by Patricia Taxxon**
 
 
 
