@@ -9,8 +9,8 @@ version = '2.9.1.4'
 
 
 config = {
-    ["name"] = "",
-    ["roomcode"] = "",
+    ["name"] = "Seve",
+    ["roomcode"] = "XFHU",
     ['game'] = "mario3",
     ["volume"] = 7,
     ["ws_id"] = null,
@@ -64,12 +64,13 @@ local function connectToWSS()
         ["event"] = "pusher:subscribe",
         ["data"] = {
             ["auth"] = config.auth,
-            ["channel_data"] = "{\"user_id\":\"" .. config.user_id .. "\",\"user_info\":{\"type\":\"client\",\"name\":\"" .. config.name .. "\":\"version\":\"" .. config.version .. "\"}}",
+            ["channel_data"] = "{\"user_id\":\"" .. config.user_id .. "\",\"user_info\":{\"type\":\"client\",\"name\":\"" .. config.name .. "\"}}",
             ["channel"] = "presence-" .. string.upper(config.roomcode),
             
         }
     }
     setConnectionStatus("connected")
+    print(json.stringify(subTable))
     comm.ws_send(config.ws_id, json.stringify(subTable) , true)  
     print_log("Server Connection Established. Attempting to connect to room " .. config.roomcode)
 end
@@ -115,7 +116,12 @@ local function ws_watch (ws_id, frame_count)
                     config.auth = null
                     config.user_id = null
                     setConnectionStatus("Not Connected")
+                    print_log(" ")
+                    print_log("----------------------------------")
                     print_log("Room not found. Please try again.")
+                    print_log("------------Error------------------")
+                    print_log(" ")
+                    
                     forms.settext(connect_btn, "Connect")
                     return
                 end
@@ -137,28 +143,42 @@ local function ws_watch (ws_id, frame_count)
             if fullResponse ~= "" then
                 local response = json.parse(fullResponse)
                 if response.event == "client-message_full" then
-                    if(response.data.name == config.name) then
+                    if(response.data.clientId == config.name) then
                         setConnectionStatus("Not Connected")
+                        print_log(" ")
+                        print_log("----------------------------------")
                         print_log("Room is full")
+                        print_log("------------Error------------------")
+                        print_log(" ")
                         config.ws_id = null
                         forms.settext(connect_btn, "Connect")
-                        gui.drawString(client.bufferwidth / 2, client.bufferheight / 2, "Sorry: Room is full or locked", 0xFFFFFF00, 0x00000000, 16, "Arial", "bold", "center", "bottom" );
+                        client.closerom()
+                        gui.drawString(client.bufferwidth() / 2, client.bufferheight() / 2, "Sorry: Room is full or locked", 0xFFFFFF00, 0x00000000, 16, "Arial", "bold", "center", "bottom" );
                         client.pause()
                         return
                     end
                 end
-                if response.event == "client-message_mismatch" then
-                    if(response.data.name == config.name) then
+                if response.event == "client-message_version_check" then
+                    if(response.data.clientId == config.name and response.data.version ~= config.version) then
                         setConnectionStatus("Not Connected")
+                        print_log(" ")
+                        print_log("----------------------------------")
                         print_log("Wrong version of Bizhawk. Please visit reactvts.com/join-va to get latest version of bizhawk")
+                        print_log("------------Error------------------")
+                        print_log(" ")                        
                         config.ws_id = null
                         forms.settext(connect_btn, "Connect")
-                        gui.drawString(client.bufferwidth / 2, client.bufferheight / 2, "reactvts.com/join-va to get latest version of bizhawk ", 0xFFFFFF00, 0x00000000, 16, "Arial", "bold", "center", "bottom" );
+                        client.closerom()
+                        gui.drawString(client.bufferwidth() / 2, client.bufferheight() / 2, "Please update to Bizhawk version " .. response.data.version , 0xFFFFFF00, 0x00000000, 16, "Arial", "bold", "center", "bottom" );
                         client.pause()
                         return
+                    else 
+                        local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","version":"%s","action":"handshake"},"channel":"presence-%s"}',
+                        config.user_id, config.name, config.version, config.roomcode)
+                        comm.ws_send(config.ws_id, sendString , true)
+                        print("Handshake sent")
                     end
                 end
-
                 if response.event == "client-message_sent" then
                     currentActivity.receive(response.data, config)
                 end
@@ -186,10 +206,11 @@ local y = 10
 
 -- 260
 setup_window = forms.newform(340, 340 , "Reactvts.com | Join Room", main_cleanup)
-local picture = forms.pictureBox( setup_window, 0, 0, 340, 50 );
-y = y + 40 
+local picture = forms.pictureBox( setup_window, 0, 0, 340, 90 );
+y = y + 90 
 forms.drawRectangle( picture, 0, 0, 600, 50, "#F6E05E", "#F6E05E");
 forms.drawText( picture, 225, 25, "Reactvts v" .. version, "black", "#F6E05E", 40, "Inter", "600", "center", "middle" );
+
 
 forms.label(setup_window, "Name:", 45, y+3, 40, 20)
 name_text = forms.textbox(setup_window, 0, 100, 20, null, 90, y)

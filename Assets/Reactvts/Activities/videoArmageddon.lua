@@ -484,27 +484,20 @@ function activity.frame(frame_count, config)
 
 	if frame_count % math.floor(2 + (#players) * 10) == 0 and activity.initalized == true and is_rom_loaded() then
 		if racing == false then
-			if memory.read_u8(0x7b51, "System Bus") == 55 and memory.read_u8(0x7b50, "System Bus") == 114 then 
-				racing = true
-				-- print('savestate level')
-				-- savestate.save('./race.state')
-				local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","version":"%s","action":"start"},"channel":"presence-%s"}',
-				config.user_id, config.name, config.version, config.roomcode)
-				comm.ws_send(config.ws_id, sendString , true)
-			end
+
 		else
 			hexScore = '0x' .. string.format("%02x", memory.read_u8(0x0715, "RAM")) .. string.format("%02x", memory.read_u8(0x0716, "RAM")) .. string.format("%02x", memory.read_u8(0x0717, "RAM"))		
 			if(hexScore ~= preHexScore) then
 				preHexScore = hexScore
 				score = tonumber(hexScore)
-				if score < last_score then -- loaded savestate
-					memory.write_u8(0x0016, 0x01, "RAM")
-					memory.write_u8(0x04f4, 0xf0, "RAM")
-					memory.write_u8(0x0559, 0xff, "RAM")
-					memory.write_u8(0x0715, 0x00, "RAM")
-					memory.write_u8(0x0716, 0x00, "RAM")
-					memory.write_u8(0x0717, 0x00, "RAM")					
-				end
+				-- if score < last_score then -- loaded savestate
+				-- 	memory.write_u8(0x0016, 0x01, "RAM")
+				-- 	memory.write_u8(0x04f4, 0xf0, "RAM")
+				-- 	memory.write_u8(0x0559, 0xff, "RAM")
+				-- 	memory.write_u8(0x0715, 0x00, "RAM")
+				-- 	memory.write_u8(0x0716, 0x00, "RAM")
+				-- 	memory.write_u8(0x0717, 0x00, "RAM")					
+				-- end
 				last_score = score
 				local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","version":"%s","action":"update","score":"%s"},"channel":"presence-%s"}',
 				config.user_id, config.name, config.version, score .. '0', config.roomcode)
