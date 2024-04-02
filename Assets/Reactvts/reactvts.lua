@@ -2,15 +2,20 @@ local json = require('Utils/json')
 local videoArmageddon = require('Activities/videoArmageddon')
 -- local videoArmageddonXX = require('Activities/videoArmageddon20XX') 
 
+apiUrl = "https://reactvts.com:3030"
+-- apiUrl = "http://localhost:3030"
+
 local currentActivity = null
 
 version = '2.9.1.4'
 
+GAMES_FOLDER = '.'
+
 
 
 config = {
-    ["name"] = "Seve",
-    ["roomcode"] = "XFHU",
+    ["name"] = "",
+    ["roomcode"] = "",
     ['game'] = "mario3",
     ["volume"] = 7,
     ["ws_id"] = null,
@@ -23,6 +28,7 @@ config = {
 }
 
 
+
 -- Functions
 
 print_log = function(msg)
@@ -30,6 +36,30 @@ print_log = function(msg)
     console_log = os.date('%Y-%m-%d %I:%M:%S%p') .. ": " .. msg ..  "\r\n\z" .. console_log
     forms.settext(console_window, console_log)
 
+end
+
+function clamp(lower, val, upper)
+    if lower > upper then lower, upper = upper, lower end
+    return math.max(lower, math.min(upper, val))
+end
+
+function log_console(msg)
+	print(msg)
+end
+
+
+function drawStatus(color, text)
+    status_color = "#F6E05E"
+    if color == "red" then 
+        status_color = "#EF4444"
+    end
+    if color == 'green' then
+        status_color = "#34D399"
+    end
+    -- error_picture = forms.pictureBox( setup_window, 0, 0, 340, 45 );
+    forms.drawRectangle( picture, 0, 50, 600, 100, status_color, status_color);
+    forms.drawText( picture, 225, 80, text, "black", status_color, 24, "Inter", "600", "center", "middle" );
+    forms.refresh(picture)
 end
 
 
@@ -44,6 +74,7 @@ local function connectToWSS()
         
         forms.settext(connect_btn, "Connect")
         print_log('Please enter a name (max 9 characters) and a 4 letter room code')
+        drawStatus("red", "Missing Name or Room Code")
         return
     end
     config.name = forms.gettext(name_text)
@@ -53,9 +84,24 @@ local function connectToWSS()
     local response = json.parse(ws)
     config.socket_id = json.parse(response.data).socket_id
     config.ws_id = temp_ws_id
-    comm.httpSetPostUrl("https://reactvts.com:3030/pusher/auth")
-    local authJson = comm.httpPost("https://reactvts.com:3030/pusher/auth", "?socket_id=" .. config.socket_id .. "&channel_name=presence-" .. string.upper(config.roomcode) .. "&userType=client&name=" .. config.name)
+    comm.httpSetPostUrl(apiUrl .. "/pusher/auth")
+    local authJson = comm.httpPost(apiUrl .. "/pusher/auth", "?socket_id=" .. config.socket_id .. "&channel_name=presence-" .. string.upper(config.roomcode) .. "&userType=client&name=" .. config.name)
+
     local authResponse = json.parse(authJson)
+    
+    if authResponse.error == true then
+        print_log(" ")
+        print_log("----------------------------------")
+        print_log(authResponse.message)
+        print_log("------------Error------------------")
+        print_log(" ")
+        drawStatus("red", authResponse.message) 
+        forms.settext(connect_btn, "Connect")
+        client.closerom()
+        config.ws_id = null
+        config.socket_id = null
+        return
+    end
     config.auth = authResponse.auth
     config.user_id = json.parse(authResponse.channel_data).user_id
 
@@ -70,16 +116,81 @@ local function connectToWSS()
         }
     }
     setConnectionStatus("connected")
-    print(json.stringify(subTable))
     comm.ws_send(config.ws_id, json.stringify(subTable) , true)  
     print_log("Server Connection Established. Attempting to connect to room " .. config.roomcode)
 end
 
+
+
+
+function decToBin(dec)
+    local bin = ""
+    while dec > 0 do
+        bin = tostring(dec % 2) .. bin
+        dec = math.floor(dec / 2)
+    end
+	while #bin < 8 do
+        bin = "0" .. bin
+    end
+	local binArray = {}
+    for digit in bin:gmatch(".") do
+        table.insert(binArray, tonumber(digit))
+    end
+    return binArray
+end
+
+function file_exists(f)
+	local p = io.open(f, 'r')
+	if p == nil then return false end
+	io.close(p)
+	return true
+end
+
+function is_rom_loaded()
+	return emu.getsystemid() ~= 'NULL'
+end
+
+function load_game(g)
+	log_console('load_game(' ..  g .. ')')
+	-- local filename = GAMES_FOLDER .. '/' .. g
+	local filename = g
+	if not file_exists(filename) then
+		log_console('ROM ' .. filename .. ' not found', g)
+        config.ws_id = null
+        print_log(" ")
+        print_log("----------------------------------")
+        print_log("ROM " .. filename .. " not found Please try again.")
+        print_log("------------Error------------------")
+        print_log(" ")
+        drawStatus("red", filename .. " not found")
+
+		return false
+	end
+
+	client.openrom(filename)
+
+	if is_rom_loaded() then
+		log_console(string.format('ROM loaded: %s "%s" (%s)', emu.getsystemid(), gameinfo.getromname(), gameinfo.getromhash()))
+		client.reboot_core( );
+		currentActivity.initalized = true
+		client.enablerewind(false)
+		client.SetGameExtraPadding(0,0,right_padding,0)
+		return true
+	else
+		log_console(string.format('Failed to open ROM "%s"', g))
+        drawStatus("red", string.format('Failed to open ROM "%s"', g))
+		return false
+	end
+
+end
+
 local function ws_watch (ws_id, frame_count)
-    if frame_count % 15 == 0 then
+    if frame_count % 10 == 0 then
         if connectionStatus == "connected" then
             local fullResponse = ""
             local ws = comm.ws_receive(ws_id)
+            
+
            
             while ws ~= "" do 
                 fullResponse = fullResponse .. ws
@@ -106,6 +217,7 @@ local function ws_watch (ws_id, frame_count)
                             if isRoom then 
                                 setConnectionStatus("subscribed")
                                 print_log("Connected")
+                                drawStatus("green", "Connected")
                                 forms.settext(connect_btn, "Connected (Click to Refresh)")
                                 return
                             end               
@@ -121,7 +233,7 @@ local function ws_watch (ws_id, frame_count)
                     print_log("Room not found. Please try again.")
                     print_log("------------Error------------------")
                     print_log(" ")
-                    
+                    drawStatus("red", "Room not found")
                     forms.settext(connect_btn, "Connect")
                     return
                 end
@@ -130,8 +242,22 @@ local function ws_watch (ws_id, frame_count)
             
         end
         if connectionStatus == "subscribed" then
+
+            if frame_count % (60 * 30) == 0 then
+                comm.ws_send(ws_id, '{"event":"pusher:ping","data":{}}', true)
+            end
+
             local fullResponse = ""
-            local ws = comm.ws_receive(ws_id)           
+            local ws = comm.ws_receive(ws_id)  
+            
+
+
+
+            if ws == "" then
+                return
+            end
+
+            
             while ws ~= "" do 
                 fullResponse = fullResponse .. ws
                 if(string.len(ws) < 1024) then
@@ -139,9 +265,12 @@ local function ws_watch (ws_id, frame_count)
                 end
                 ws = comm.ws_receive(ws_id)
             end
+
+            
             
             if fullResponse ~= "" then
                 local response = json.parse(fullResponse)
+                print_log("Received: " .. fullResponse)
                 if response.event == "client-message_full" then
                     if(response.data.clientId == config.name) then
                         setConnectionStatus("Not Connected")
@@ -151,6 +280,7 @@ local function ws_watch (ws_id, frame_count)
                         print_log("------------Error------------------")
                         print_log(" ")
                         config.ws_id = null
+                        drawStatus("red", "Room is full or locked")
                         forms.settext(connect_btn, "Connect")
                         client.closerom()
                         gui.drawString(client.bufferwidth() / 2, client.bufferheight() / 2, "Sorry: Room is full or locked", 0xFFFFFF00, 0x00000000, 16, "Arial", "bold", "center", "bottom" );
@@ -169,7 +299,7 @@ local function ws_watch (ws_id, frame_count)
                         config.ws_id = null
                         forms.settext(connect_btn, "Connect")
                         client.closerom()
-                        gui.drawString(client.bufferwidth() / 2, client.bufferheight() / 2, "Please update to Bizhawk version " .. response.data.version , 0xFFFFFF00, 0x00000000, 16, "Arial", "bold", "center", "bottom" );
+                        drawStatus("red", "Update Required")
                         client.pause()
                         return
                     else 
@@ -183,9 +313,7 @@ local function ws_watch (ws_id, frame_count)
                     currentActivity.receive(response.data, config)
                 end
             end
-            if frame_count % (60 * 30) == 0 then
-                comm.ws_send(ws_id, '{"event":"pusher:ping","data":{}}', true)
-            end
+   
         end 
     end
     
@@ -206,13 +334,13 @@ local y = 10
 
 -- 260
 setup_window = forms.newform(340, 340 , "Reactvts.com | Join Room", main_cleanup)
-local picture = forms.pictureBox( setup_window, 0, 0, 340, 90 );
-y = y + 90 
+picture = forms.pictureBox( setup_window, 0, 0, 340, 90 );
+y = y + 90
 forms.drawRectangle( picture, 0, 0, 600, 50, "#F6E05E", "#F6E05E");
 forms.drawText( picture, 225, 25, "Reactvts v" .. version, "black", "#F6E05E", 40, "Inter", "600", "center", "middle" );
-
-
+drawStatus("yellow", "Waiting to Connect...", picture)
 forms.label(setup_window, "Name:", 45, y+3, 40, 20)
+forms.label(setup_window, "(9 Letter Max)", 200, y+3, 120, 20)
 name_text = forms.textbox(setup_window, 0, 100, 20, null, 90, y)
 forms.settext(name_text, config.name)
 y = y + 20

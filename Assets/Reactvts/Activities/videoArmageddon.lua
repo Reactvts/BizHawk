@@ -3,7 +3,7 @@ activity.title = "Video Armageddon"
 activity.initalized = false
 
 
-GAMES_FOLDER = '.'
+
 effect_timer = -1
 
 prev_room = null
@@ -12,7 +12,8 @@ speed = 100
 last_song = 0
 last_score = 0
 level_finished = false
-time_left = 0
+time_left = '00:00:00'
+total_seconds = 0;
 players = {}
 player_count = null
 player_position = null
@@ -80,21 +81,8 @@ end
 
 
 
-function decToBin(dec)
-    local bin = ""
-    while dec > 0 do
-        bin = tostring(dec % 2) .. bin
-        dec = math.floor(dec / 2)
-    end
-	while #bin < 8 do
-        bin = "0" .. bin
-    end
-	local binArray = {}
-    for digit in bin:gmatch(".") do
-        table.insert(binArray, tonumber(digit))
-    end
-    return binArray
-end
+
+
 
 function getInputs()
     local bin = ""
@@ -113,51 +101,13 @@ function getInputs()
     return binArray
 end
 
-function log_console(msg)
-	print(msg)
-end
 
 
-function file_exists(f)
-	local p = io.open(f, 'r')
-	if p == nil then return false end
-	io.close(p)
-	return true
-end
-
-function is_rom_loaded()
-	return emu.getsystemid() ~= 'NULL'
-end
 
 
-log_console('Waking up the video boss')
 
-function load_game(g)
-	log_console('load_game(' ..  g .. ')')
-	-- local filename = GAMES_FOLDER .. '/' .. g
-	local filename = g
-	if not file_exists(filename) then
-		log_console('ROM ' .. filename .. ' not found', g)
-		return false
-	end
 
-	client.openrom(filename)
-
-	if is_rom_loaded() then
-		log_console(string.format('ROM loaded: %s "%s" (%s)', emu.getsystemid(), gameinfo.getromname(), gameinfo.getromhash()))
-		client.reboot_core( );
-		activity.initalized = true
-		client.enablerewind(false)
-		client.SetGameExtraPadding(0,0,right_padding,0)
-		return true
-	else
-		log_console(string.format('Failed to open ROM "%s"', g))
-		return false
-	end
-
-end
-
-function drawGUI()
+function activity.drawGUI()
 
 	local x = client.bufferwidth() + right_padding 
 	if player_position ~= null and player_count > 0 then 
@@ -229,7 +179,7 @@ function drawGUI()
 end
 
 function init()
-	log_console('Initializing the video boss')
+	log_console('Initializing the Video boss')
 	frame_count = 0
 	effect_timer = 0
 	preHexScore = 0
@@ -241,7 +191,7 @@ function init()
 	load_game('./Roms/Mario3.nes')
 end
 
-function activity.frame(frame_count, config)
+function activity.frame(frame_count)
 	if prev_room ~= config.roomcode then
 		prev_room = config.roomcode
 		activity.initalized = false
@@ -251,10 +201,25 @@ function activity.frame(frame_count, config)
 	end
 	if activity.initalized == true and is_rom_loaded() then
 		gui.clearGraphics()
-		drawGUI()
+		activity.drawGUI()
 	end
 
+
+
 	if activity.initalized == true and is_rom_loaded() and racing then
+
+		if frame_count % 60 == 0 then
+			if(total_seconds <= 0) then
+				racing = false
+				return 
+			end
+			total_seconds = total_seconds - 1  -- subtract one second
+			h = math.floor(total_seconds / 3600)
+			total_seconds = total_seconds - (h * 3600)
+			m = math.floor(total_seconds / 60)
+			s = total_seconds - (m * 60)
+			time_left = string.format("%02d:%02d:%02d", h, m, s)       
+		end
 		
 		client.speedmode(speed, false)
 
@@ -482,7 +447,7 @@ function activity.frame(frame_count, config)
 
 
 
-	if frame_count % math.floor(2 + (#players) * 10) == 0 and activity.initalized == true and is_rom_loaded() then
+	if frame_count % clamp(30, #players * 10, 2 * 60) == 0 and activity.initalized == true and is_rom_loaded() then
 		if racing == false then
 
 		else
@@ -544,10 +509,12 @@ function activity.frame(frame_count, config)
 	end
 end
 
-function activity.receive(data, config)
+function activity.receive(data)
 	
 	if data.action == "standings" then
 		time_left = data.time
+		h, m, s = data.time:match('(%d+):(%d+):(%d+)')
+		total_seconds = h * 3600 + m * 60 + s
 		players = split(data.players,'|')
 		for key, value in pairs(players) do
 			if value == config.name then
