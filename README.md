@@ -10,7 +10,7 @@
 
 ### Current Available Activities
 
-#### Video Armageddon '89 V1.2.0
+#### Video Armageddon '89 V1.9.1.6
 
 Race with up 89 players in Mario 3 points race inspired by the movie "The Wizard"
 
