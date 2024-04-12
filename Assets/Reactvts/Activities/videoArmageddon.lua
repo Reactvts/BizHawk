@@ -24,6 +24,7 @@ local game_mode = 'classic'
 
 
 
+
 -- Item Variables
 
 local itemChoices = {
@@ -711,19 +712,26 @@ function activity.receive(data)
 			end
 
 			if data.action == "item" and (data.name == config.name or data.name == 'all') then
-				print('Item ' .. data.item .. ' ' .. data.attacker)
+
+				for i, attack in ipairs(attack_queue) do
+					if attack['uid'] == data.uid then
+						print('Already in queue')
+						return
+					end
+				end
+								
 				if data.item == 'banana' then
-					table.insert(attack_queue, {["name"] = 'banana', ['attacker'] = data.attacker, ["itemIndex"] = 2 , ["frames"] = 60 * 3})
+					table.insert(attack_queue, {["name"] = 'banana', ['attacker'] = data.attacker, ['uid'] = data.uid, ["itemIndex"] = 2 , ["frames"] = 60 * 3})
 				end
 				if data.item == 'greenShell' then
-					table.insert(attack_queue, {["name"] = 'greenShell', ['attacker'] = data.attacker, ["itemIndex"] = 3 , ["frames"] = 60 * 3})
+					table.insert(attack_queue, {["name"] = 'greenShell', ['attacker'] = data.attacker, ['uid'] = data.uid, ["itemIndex"] = 3 , ["frames"] = 60 * 3})
 				end
 				if data.item == 'redShell' then
-					table.insert(attack_queue, {["name"] = 'redShell', ['attacker'] = data.attacker, ["itemIndex"] = 4 , ["frames"] = 60 * 3})
+					table.insert(attack_queue, {["name"] = 'redShell', ['attacker'] = data.attacker, ['uid'] = data.uid, ["itemIndex"] = 4 , ["frames"] = 60 * 3})
 				end
 				
 				if data.item == 'lightning' and data.attacker ~= config.name then
-					table.insert(attack_queue, {["name"] = 'lightning', ['attacker'] = data.attacker, ["itemIndex"] = 5 , ["frames"] = 1})
+					table.insert(attack_queue, {["name"] = 'lightning', ['attacker'] = data.attacker, ['uid'] = data.uid, ["itemIndex"] = 5 , ["frames"] = 1})
 				end
 			end
 		end
