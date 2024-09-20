@@ -1,25 +1,29 @@
 local activity = {}
-activity.title = "Video Armageddon"
+activity.title = "Video Armageddon XX"
 activity.initalized = false
 
+local start_countdown = 0
 
-GAMES_FOLDER = '.'
-effect_timer = -1
+local effect_timer = -1
+local right_padding = 125 
+local prev_room = null
+local is_frozen = false
+local speed = 100
+local last_song = 0
+local last_score = 0
+local level_finished = false
+local time_left = '00:00:00'
+local total_seconds = 0;
+local players = {}
+local player_count = null
+local player_position = null
+local game_mode = 'classic'
+local score = 0
 
-prev_room = null
-is_frozen = false
-speed = 100
-last_song = 0
-score = 0
-last_score = 0
-level_finished = false
-time_left = 0
-players = {}
-player_count = null
-player_position = null
-kill_count = 0
-right_padding = 75
-enemyMemory = {
+
+
+local kill_count = 0
+local enemyMemory = {
 	[0] = false,
 	[1] = false,
 	[2] = false,
@@ -41,7 +45,7 @@ enemyMemory = {
 
 -- mm3 
 
-progress = {}
+local progress = {}
 
 
 
@@ -58,12 +62,12 @@ local itemChoices = {
 local itemCounter = 1
 
 
-item_width = 26
-item_height = 18
+local item_width = 26
+local item_height = 18
 local item_status = 'empty'
 local item = null
 local item_frame = 0
-next_item = null
+local next_item = null
 local select_cooldown = 0
 local item_effect = null
 local item_effect_frame = 0
@@ -72,7 +76,7 @@ local attack_queue = {
 
 }
 
-alive = true
+local alive = true
 
 local function isInvincible()
 	return (memory.read_u8(0x0552, "RAM") + 
@@ -106,21 +110,6 @@ end
 
 
 
-local function decToBin(dec)
-    local bin = ""
-    while dec > 0 do
-        bin = tostring(dec % 2) .. bin
-        dec = math.floor(dec / 2)
-    end
-	while #bin < 8 do
-        bin = "0" .. bin
-    end
-	local binArray = {}
-    for digit in bin:gmatch(".") do
-        table.insert(binArray, tonumber(digit))
-    end
-    return binArray
-end
 
 local function getInputs()
     local bin = ""
@@ -139,57 +128,38 @@ local function getInputs()
     return binArray
 end
 
-function log_console(msg)
-	print(msg)
-end
 
 
-local function file_exists(f)
-	local p = io.open(f, 'r')
-	if p == nil then return false end
-	io.close(p)
-	return true
-end
-
-function is_rom_loaded()
-	return emu.getsystemid() ~= 'NULL'
-end
 
 
-log_console('Waking up the video boss')
 
-local function load_game(g)
-	log_console('load_game(' ..  g .. ') me')
-	-- local filename = GAMES_FOLDER .. '/' .. g
-	local filename = g
-	if not file_exists(filename) then
-		log_console('ROM ' .. filename .. ' not found', g)
-		return false
-	end
-
-	client.openrom(filename)
-
-	if is_rom_loaded() then
-		log_console(string.format('ROM loaded: %s "%s" (%s)', emu.getsystemid(), gameinfo.getromname(), gameinfo.getromhash()))
-		client.reboot_core( );
-		activity.initalized = true
-		client.enablerewind(false)
-		client.SetGameExtraPadding(0,0,right_padding,0)
-		local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"start"},"channel":"presence-%s"}',
-		config.user_id, config.name, config.roomcode)
-		comm.ws_send(config.ws_id, sendString , true)
-		racing = true
-		return true
-	else
-		log_console(string.format('Failed to open ROM "%s"', g))
-		return false
-	end
-
-end
-
-local function drawGUI()
+function activity.drawGUI()
 
 	local x = client.bufferwidth() + right_padding 
+	if start_countdown > 0 and racing == false then
+		gui.drawString( (client.bufferwidth() / 2) + 2, (client.bufferheight() / 2) + 2, start_countdown, 0xFF000000, 0x00000000, 64, "Arial", "bold", "center", "middle" );
+		gui.drawString( (client.bufferwidth()) / 2, client.bufferheight() / 2, start_countdown, 0xFFFFFF00, 0x00000000, 64, "Arial", "bold", "center", "middle" );
+	end
+
+	if start_countdown == 0 and racing == false then
+		gui.drawString( (client.bufferwidth() / 2) + 2, (client.bufferheight() / 2) + 2, 'Waiting to Start...', 0xFF000000, 0x00000000, 18, "Arial", "bold", "center", "middle" );
+		gui.drawString( (client.bufferwidth()) / 2, client.bufferheight() / 2, 'Waiting to Start...', 0xFFFFFF00, 0x00000000, 18, "Arial", "bold", "center", "middle" );
+	end
+	if start_countdown == -1 and racing == false then
+		client.pause()
+		local x = (client.bufferwidth() / 2) + 15;
+		local y =  (client.bufferheight() / 2) - 10;
+
+		
+		gui.drawString( x-8, y+2, player_position, 0xFF000000, 0x00000000, 64, "Arial", "bold", "right", "middle" );
+		gui.drawString( x-10, y, player_position, 0xFFFFFF00, 0x00000000, 64, "Arial", "bold", "right", "middle" );
+		
+		gui.drawString( x-24, y+6, '/', 0xFF000000, 0x00000000, 32, "Arial", "bold", "left", "middle" );
+		gui.drawString( x-26, y+4, '/', 0xFFFFFF00, 0x00000000, 32, "Arial", "bold", "left", "middle" );
+		
+		gui.drawString( x-14, y+6, player_count, 0xFF000000, 0x00000000, 32, "Arial", "bold", "left", "middle" );
+		gui.drawString( x-16, y+4, player_count, 0xFFFFFF00, 0x00000000, 32, "Arial", "bold", "left", "middle" );
+	end
 	if player_position ~= null and player_count > 0 then 
 		local startPos = player_position - 5
 		local endPos = player_position + 5
@@ -207,7 +177,7 @@ local function drawGUI()
 		end
 
 		
-		local youFontSize = 22
+		local youFontSize = 16
 		local themFontSize = 11
 		local yPos = (client.bufferheight() - (((themFontSize + 2) * (endPos - startPos - 1)) + youFontSize + 2)) / 2
 		for i = startPos, endPos do
@@ -231,10 +201,6 @@ local function drawGUI()
 			if endPos == #players and i > player_position then
 				alpha = 0xFF000000
 			end
-
-
-			
-			
 
 			if i == player_position then
 				-- gui.drawString( x - 2, yPos + 1, string.upper(players[i]), 0xFFFFFF00, 0x00000000, youFontSize, "Arial", "bold", "right", "top" );
@@ -262,16 +228,61 @@ local function init()
 	log_console('Initializing the video boss')
 	frame_count = 0
 	effect_timer = 0
+	score = 0
 	preHexScore = 0
 	players = {}
 	player_count = null
 	player_position = null
 	racing = false
 	connected = false
-	load_game('./Roms/megaman3.nes')
+	print(config.games.megaman3)
+	loadGame(config.games.megaman3)
 end
 
-function activity.frame(frame_count, config)
+function activity.reset()
+	client.closerom()
+	log_console('Reset the Video boss')
+	frame_count = 0
+	effect_timer = 0
+	preHexScore = 0
+	players = {}
+	player_count = null
+	player_position = null
+	racing = false
+	connected = false
+
+	start_countdown = 0
+
+	effect_timer = -1
+	right_padding = 125 
+	prev_room = null
+	is_frozen = false
+	speed = 100
+	last_song = 0
+	last_score = 0
+	level_finished = false
+	time_left = '00:00:00'
+	total_seconds = 0;
+	players = {}
+	player_count = null
+	player_position = null
+	
+	itemCounter = 1
+	item_status = 'empty'
+	item = null
+	item_frame = 0
+	next_item = null
+	select_cooldown = 0
+	item_effect = null
+	item_effect_frame = 0
+	shell_sound = false
+	attack_queue = {}
+	alive = true
+
+end
+
+
+function activity.frame(frame_count)
 	if prev_room ~= config.roomcode then
 		prev_room = config.roomcode
 		activity.initalized = false
@@ -281,7 +292,8 @@ function activity.frame(frame_count, config)
 	end
 	if activity.initalized == true and is_rom_loaded() then
 		gui.clearGraphics()
-		drawGUI()
+		activity.drawGUI()  
+		-- brain dump, loads but not tracking score
 
 		if memory.read_u8(0x0022, "RAM") > 0 and memory.read_u8(0x0380, "RAM") > 0 then
 			local address = memory.read_u8(0x0022, "RAM") .. '|' .. memory.read_u8(0x0380, "RAM")
@@ -295,6 +307,16 @@ function activity.frame(frame_count, config)
 	end
 
 	if activity.initalized == true and is_rom_loaded() and racing then
+
+		if frame_count % 60 == 0 then
+			total_seconds = total_seconds - 1  -- subtract one second
+			h = math.floor(total_seconds / 3600)
+			total_seconds = total_seconds - (h * 3600)
+			m = math.floor(total_seconds / 60)
+			s = total_seconds - (m * 60)
+			time_left = string.format("%02d:%02d:%02d", h, m, s)       
+		end
+		
 		
 		client.speedmode(speed, false)
 
@@ -305,7 +327,7 @@ function activity.frame(frame_count, config)
 
 		-- if memory.read_u8(0x04e4, "RAM") == 0x01 and alive == true  then
 		-- 	alive = false
-		-- 	local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"died"},"channel":"presence-%s"}',
+		-- 	local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"died"},"channel":"presence-%s-game"}',
 		-- 	config.user_id, config.name, config.roomcode)
 		-- 	comm.ws_send(config.ws_id, sendString , true)
 		-- end
@@ -338,7 +360,7 @@ function activity.frame(frame_count, config)
 						client.PlaySound('./Reactvts/Activities/assets/shellbounce.wav', config.volume, 1)
 						table.remove(attack_queue, 1)
 					else
-						local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"throw","item":"%s"},"channel":"presence-%s"}',
+						local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"throw","item":"%s"},"channel":"presence-%s-game"}',
 						config.user_id, config.name, item[1], config.roomcode)
 						comm.ws_send(config.ws_id, sendString , true)
 						client.PlaySound('./Reactvts/Activities/assets/fire.wav', config.volume, 1)
@@ -447,7 +469,7 @@ function activity.frame(frame_count, config)
 						local currentPowerup = memory.read_u8(0x00ed, "RAM")
 
 						if attack.name == 'greenShell' and memory.read_u8(0x00d8) ~= 0 then -- jumping over item
-							local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"throw","item":"%s"},"channel":"presence-%s"}',
+							local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"throw","item":"%s"},"channel":"presence-%s-game"}',
 							config.user_id, config.name, 'greenShell', config.roomcode)
 							comm.ws_send(config.ws_id, sendString , true)
 						else 
@@ -471,7 +493,7 @@ function activity.frame(frame_count, config)
 					end
 					if attack.name == 'banana' then
 						if memory.read_u8(0x00d8) ~= 0 then -- jumping over item
-							local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"throw","item":"%s"},"channel":"presence-%s"}',
+							local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"throw","item":"%s"},"channel":"presence-%s-game"}',
 							config.user_id, config.name, 'banana', config.roomcode)
 							comm.ws_send(config.ws_id, sendString , true)
 						else 
@@ -517,7 +539,7 @@ function activity.frame(frame_count, config)
 			-- 	racing = true
 			-- 	-- print('savestate level')
 			-- 	-- savestate.save('./race.state')
-			-- 	local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"start"},"channel":"presence-%s"}',
+			-- 	local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"start"},"channel":"presence-%s-game"}',
 			-- 	config.user_id, config.name, config.roomcode)
 			-- 	comm.ws_send(config.ws_id, sendString , true)
 			-- end
@@ -526,7 +548,7 @@ function activity.frame(frame_count, config)
 			if(score ~= last_score) then
 				print('sending score ' .. score)
 				last_score = score
-				local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"update","score":"%s"},"channel":"presence-%s"}',
+				local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"update","score":"%s"},"channel":"presence-%s-game"}',
 				config.user_id, config.name, score .. '0', config.roomcode)
 				comm.ws_send(config.ws_id, sendString , true)
 			end	
@@ -548,7 +570,7 @@ function activity.frame(frame_count, config)
 						if kill_count == 10 then
 							item_status = 'spin'
 							print('spin')
-							local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"buy"},"channel":"presence-%s"}',
+							local sendString = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","action":"buy"},"channel":"presence-%s-game"}',
 							config.user_id, config.name, config.roomcode)
 							comm.ws_send(config.ws_id, sendString , true)
 
@@ -611,7 +633,11 @@ end
 function activity.receive(data, config)
 	
 	if data.action == "standings" then
+		print(data)
+		game_mode = data.mode
 		time_left = data.time
+		h, m, s = data.time:match('(%d+):(%d+):(%d+)')
+		total_seconds = h * 3600 + m * 60 + s
 		players = split(data.players,'|')
 		for key, value in pairs(players) do
 			if value == config.name then
@@ -619,7 +645,26 @@ function activity.receive(data, config)
 			end
 			player_count = key
 		end
+		
+
+		if data.final == true then
+			racing = false
+			start_countdown = -1
+		end
 	return
+	end
+	if data.action == "countdown" then
+		start_countdown = data.value
+		print('Countdown ' .. start_countdown)
+	end
+	if data.action == "start" then
+		if savestate.load('./Saves/megaman3-va.state') then
+			racing = true
+		else 
+			print('Failed to load state')
+		end
+		return
+
 	end
 	if(data.name == 'all' or data.name == config.name) then
 
@@ -685,10 +730,10 @@ function activity.receive(data, config)
 		-- 	memory.write_u8(0x0736, lives, "RAM")
 		-- end
 
-		-- if data.action == "get" then
-		-- 	print('getItem' .. data.item)
-		-- 	next_item = data.item
-		-- end
+		if data.action == "get" then
+			print('getItem' .. data.item)
+			next_item = data.item
+		end
 
 		-- if data.action == "item" and (data.name == config.name or data.name == 'all') then
 		-- 	if data.item == 'banana' then

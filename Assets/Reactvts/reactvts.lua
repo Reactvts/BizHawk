@@ -1,15 +1,20 @@
 local json = require('Utils/json')
 require('Utils/dump')
 local video_armageddon = require('Activities/videoArmageddon')
--- local videoArmageddonXX = require('Activities/videoArmageddon20XX') 
+local video_armageddon_xx = require('Activities/videoArmageddon20XX') 
+local race_director = require('Activities/raceDirector')
+local the_qa_department = require('Activities/theQADepartment')
 
-apiUrl = "https://reactvts.com:3030"
--- apiUrl = "http://localhost:3030"
+ws_url = "wss://reactvts.com:6001/app/jtcGSRD9za4QHWhTa3YTdQ9pFVRF9SH6brc7QvShUkxmP52Fsd?protocol=7&client=js&version=8.3.0&flash=false"
+api_url = "https://reactvts.com:3030"
+-- api_url = "http://localhost:3030"
 
 local current_activity = null
 local right_padding = 125
 local last_connected_name = ""
 local last_room_code = ""
+paused = true
+
 
 
 version = '2.9.1.6'
@@ -24,6 +29,7 @@ config = {
     ["games"] = {},
     ["current_game"] = null,
     ["volume"] = 0.7,
+    ["streaming"] = "vdo.ninja",
     ["ws_id"] = null,
     ['ws_lobby_id'] = null,
     ["socket_id"] = null,
@@ -31,7 +37,10 @@ config = {
     ["user_id"] = null,
     ["version"] = version,
     ["connection_status"] = "Not Connected",
-    ['auth'] = null
+    ["game_mode"] = null,
+    ['auth'] = null,
+    ['form'] = null
+
 }
 
 console_log = ""
@@ -63,6 +72,15 @@ function saveConfig()
 	write_data('./config.lua', 'configFile=\n'..dump(saveConfig))
 end
 
+-- saves session file
+function saveSession()
+	write_data('./session.lua', 'sessionFile=\n'..dump(config))
+end
+
+function clearSession()
+    write_data('./session.lua', 'sessionFile=null')
+end
+
 -- loads primary config file
 function loadConfig()
 	local fn = loadfile('./config.lua')
@@ -72,12 +90,12 @@ function loadConfig()
         config.name = configFile.name
         config.volume = configFile.volume
         config.games = configFile.games
-        
-        
     end
     
 	return fn ~= nil
 end
+
+
 
 --  function printLog(msg)
 --     print(msg)
@@ -111,15 +129,43 @@ function drawStatus(color, text)
     end
     -- error_picture = forms.pictureBox( setup_window, 0, 0, 340, 45 );
     forms.drawRectangle( picture, 0, 50, 600, 100, status_color, status_color);
-    forms.drawText( picture, 225, 80, text, "black", status_color, 24, "Inter", "600", "center", "middle" );
+    forms.drawText( picture, 225, 80, text, "black", status_color, 24, "Arial", "600", "center", "middle" );
     forms.refresh(picture)
 end
+
+function isBitSet(value, bitPosition)
+    -- Shift 1 left by bitPosition to create a mask
+    local mask = 1 << bitPosition
+    -- Use bitwise AND to check if the bit is set
+    return (value & mask) ~= 0
+end
+
 
 local function setConnectionStatus(status)
     config.connection_status = status
 end
 
 local function disconnect()
+    if(config.ws_id ~= null) then
+        local unsub_table = {
+            ["event"] = "pusher:unsubscribe",
+            ["data"] = {
+                ["channel"] = "presence-" .. string.upper(config.roomcode) .. "-lobby"
+            }
+        }
+        comm.ws_send(config.ws_id, json.stringify(unsub_table) , true)  
+    end
+
+    if(config.ws_lobby_id ~= null) then
+        local unsub_table = {
+            ["event"] = "pusher:unsubscribe",
+            ["data"] = {
+                ["channel"] = "presence-" .. string.upper(config.roomcode) 
+            }
+        }
+        comm.ws_send(config.ws_lobby_id, json.stringify(unsub_table) , true)  
+    end
+    
     gui.clearGraphics()
     forms.settext(connect_btn, "Connect")
     client.closerom()
@@ -131,7 +177,9 @@ local function disconnect()
     config.auth = null
     config.user_id = null
     config.connection_status = "Not Connected"
-    current_activity.reset()
+    if current_activity ~= null then
+        current_activity.reset()
+    end
 end
 
 
@@ -139,23 +187,23 @@ end
 local function connectToLobbyWSS()
     
     forms.settext(connect_btn, "Connecting...")
-    if forms.gettext(name_text) == "" or string.len(forms.gettext(name_text)) > 9 or string.len(forms.gettext(roomcode_text)) ~= 4 then
+    if forms.gettext(name_text) == "" or string.len(forms.gettext(name_text)) > 25 or string.len(forms.gettext(roomcode_text)) ~= 4 then
         forms.settext(connect_btn, "Connect")
-        printLog('Please enter a name (max 9 characters) and a 4 letter room code')
+        printLog('Please enter a name (max 25 characters) and a 4 letter room code')
         drawStatus("red", "Missing Name or Room Code")
         return
     end
     config.name = forms.gettext(name_text)
-    config.roomcode = forms.gettext(roomcode_text)
+    config.roomcode = string.upper(forms.gettext(roomcode_text))
     last_connected_name = config.name
     last_room_code = config.roomcode
-    local temp_ws_id = comm.ws_open('wss://reactvts.com:6001/app/jtcGSRD9za4QHWhTa3YTdQ9pFVRF9SH6brc7QvShUkxmP52Fsd?protocol=7&client=js&version=8.3.0&flash=false')
+    local temp_ws_id = comm.ws_open(ws_url)
     local ws = comm.ws_receive(temp_ws_id);
     local response = json.parse(ws)
     config.socket_id = json.parse(response.data).socket_id
     config.ws_lobby_id = temp_ws_id
-    comm.httpSetPostUrl(apiUrl .. "/pusher/auth")
-    local authJson = comm.httpPost(apiUrl .. "/pusher/auth", "?socket_id=" .. config.socket_id .. "&channel_name=presence-" .. string.upper(config.roomcode) .. "-lobby&userType=client&name=" .. config.name)
+    comm.httpSetPostUrl(api_url .. "/pusher/auth")
+    local authJson = comm.httpPost(api_url .. "/pusher/auth", "?socket_id=" .. config.socket_id .. "&channel_name=presence-" .. string.upper(config.roomcode) .. "-lobby&userType=client&name=" .. config.name)
 
     local auth_response = json.parse(authJson)
     
@@ -185,7 +233,7 @@ local function connectToLobbyWSS()
     setConnectionStatus("connected")
     print('subscribing to lobby')
     comm.ws_send(config.ws_lobby_id, json.stringify(sub_table) , true)  
-    printLog("Lobby Server Connection Established. Attempting to connect to game room " .. config.roomcode)
+    printLog("Lobby Server Connection Established. Attempting to connect to game room lobby " .. config.roomcode)
 end
 
 local function connectToWSS()
@@ -194,7 +242,7 @@ local function connectToWSS()
         config.ws_id = config.ws_lobby_id
     end
     
-    local authJson = comm.httpPost(apiUrl .. "/pusher/auth", "?socket_id=" .. config.socket_id .. "&channel_name=presence-" .. string.upper(config.roomcode) .. "-game&userType=client&name=" .. config.name)
+    local authJson = comm.httpPost(api_url .. "/pusher/auth", "?socket_id=" .. config.socket_id .. "&channel_name=presence-" .. string.upper(config.roomcode) .. "-game&userType=client&name=" .. config.name)
 
     local auth_response = json.parse(authJson)
     
@@ -236,12 +284,47 @@ local function connectToWSS()
     comm.ws_send(config.ws_id, json.stringify(sub_table) , true)  
     config.ws_lobby_id = null
     forms.settext(connect_btn, "Connected (Click to Refresh)")
+
+	local send_streaming_string = string.format('{"event":"client-message_sent","data":{"id":"%s","clientId":"%s","version":"%s","action":"streaming", "value": "%s"},"channel":"presence-%s-game"}',
+	config.user_id, config.name, config.version, config.streaming, config.roomcode)
+	comm.ws_send(config.ws_id, send_streaming_string, true)
+end
+
+
+
+function loadSession()
+	local fn = loadfile('./session.lua')
+	if fn ~= nil then 
+        fn()
+        if sessionFile == null then
+            return false
+        end
+        forms.settext(name_text, sessionFile.name)
+        forms.settext(roomcode_text, sessionFile.roomcode)
+       
+        config = sessionFile
+
+        gui.clearGraphics()
+        forms.settext(connect_btn, "Connect")
+        last_connected_name = ""
+        last_room_code = ""
+        config.ws_id = null
+        config.ws_lobby_id = null
+        config.socket_id = null
+        config.auth = null
+        config.user_id = null
+        config.connection_status = "Not Connected"
+        
+        connectToLobbyWSS()      
+        print("gamemode " .. config.game_mode)
+    end
+    
+	return fn ~= nil
 end
 
 local function connectTo()
-    config.roomcode = forms.gettext(roomcode_text)
+    config.roomcode = string.upper(forms.gettext(roomcode_text))
     drawStatus("yellow", "Connecting...", picture)
-
     if last_connected_name == config.name and last_room_code == config.roomcode and config.ws_id ~= null then
         connectToWSS()
         return
@@ -305,7 +388,7 @@ function loadGame(g)
 		client.reboot_core( );
 		current_activity.initalized = true
 		client.enablerewind(false)
-		client.SetGameExtraPadding(0,0,right_padding,0)
+		-- client.SetGameExtraPadding(0,0,right_padding,0)
 		return true
 	else
 		log_console(string.format('Failed to open ROM "%s"', g))
@@ -338,11 +421,27 @@ function scanGames()
                 if gameinfo.getromhash() == "6BD518E85EB46A4252AF07910F61036E84B020D1" then
                     config.games['mario3'] = fullPath
                 end
+                --megaman3hash
+                if gameinfo.getromhash() == "53197445E137E47A73FD4876B87E288ED0FED5C6" then
+                    config.games['megaman3'] = fullPath
+                end
+                --zelda1hash
+                if gameinfo.getromhash() == "614fb3085826e62f3be3a3fe0b931689" or gameinfo.getromhash() == "3701381A82FC7D52B2DD3E8892047B30A114AB43" then
+                    config.games['zelda1'] = fullPath
+                end
+                --kirbyhash
+                if gameinfo.getromhash() == "E099D688760FF0CE114CA8A9FD083E31E41CFADE" then
+                    config.games['kirby2'] = fullPath
+                end
             end
+            print('closing ' .. fullPath)
             client.closerom()
         end
     end
+    print('end scan')
     client.unpause()
+    client.closerom()
+    
     drawStatus("Green", string.format('Scan Complete', g))
     saveConfig()
 end
@@ -354,7 +453,7 @@ local function WSLobbyWatch (frame_count)
             local fullResponse = ""
             local ws = comm.ws_receive(config.ws_lobby_id)
         
-            while ws ~= "" do 
+            while ws ~= "" and ws ~= null do 
                 fullResponse = fullResponse .. ws
                 if(string.len(ws) < 1024) then
                     break
@@ -413,7 +512,45 @@ local function WSLobbyWatch (frame_count)
                 end
 
                 if response.event == "client-message_let_in" and response.data.clientId == config.name then
-                    connectToWSS()
+                        if response.data.mode == "89" or response.data.mode == "classic" then
+                            current_activity = video_armageddon
+                            config.current_game = "mario3"
+                            config.game_mode = response.data.mode
+                        end
+                        if response.data.mode == "xx" then
+                            current_activity = video_armageddon_xx
+                            config.current_game = "megaman3"
+                            config.game_mode = response.data.mode
+                        end
+                        if response.data.mode == "race-director" then
+                            current_activity = race_director
+                            config.current_game = null
+                            config.game_mode = response.data.mode
+                        end
+
+                        if response.data.mode == "the-qa-department" then
+                            current_activity = the_qa_department
+                            config.current_game = null
+                            config.game_mode = null
+                        end
+
+                        if current_activity ~= null and (config.current_game == null or config.games[config.current_game] ~= null) then
+                            connectToWSS()   
+                        else 
+                            setConnectionStatus("Not Connected")
+                            printLog(" ")
+                            printLog("----------------------------------")
+                            printLog("Game Not Found or Incorrect Version")
+                            printLog("------------Error------------------")
+                            printLog(" ")
+                            drawStatus("red", "Game Not Found or Wrong Version")
+    
+    
+                            gui.drawString(client.bufferwidth() / 2, client.bufferheight() / 2, "Sorry: Room is full or locked", 0xFFFFFF00, 0x00000000, 16, "Arial", "bold", "center", "bottom" );
+                            disconnect()
+                        end
+                
+                    
                 end
             end
             
@@ -430,7 +567,7 @@ local function WSWatch (frame_count)
             local ws = comm.ws_receive(config.ws_id)          
 
            
-            while ws ~= "" do 
+            while ws ~= "" and ws ~= null do 
                 fullResponse = fullResponse .. ws
                 if(string.len(ws) < 1024) then
                     break
@@ -440,6 +577,7 @@ local function WSWatch (frame_count)
     
             if fullResponse ~= "" then       
                 local response = json.parse(fullResponse)
+                printLog("Received: " .. fullResponse)
                 if response.event == "pusher_internal:subscription_succeeded" then
                     printLog("Attempting to connect to channel " .. response.channel)
                     if response.channel == "presence-" .. string.upper(config.roomcode) then
@@ -476,6 +614,7 @@ local function WSWatch (frame_count)
                     return
                 end
 
+
             end
             
         end
@@ -485,15 +624,18 @@ local function WSWatch (frame_count)
                 comm.ws_send(config.ws_id, '{"event":"pusher:ping","data":{}}', true)
             end
 
+
             local fullResponse = ""
             local ws = comm.ws_receive(config.ws_id)  
             
-            if ws == "" then
+            if ws == "" or ws == null then
                 return
             end
 
-            while ws ~= "" do 
-                while ws ~= "" do 
+            printLog("Received: " .. ws)
+
+            while ws ~= "" and ws ~= null do 
+                while ws ~= "" and ws ~= null do 
                     fullResponse = fullResponse .. ws
                     if(string.len(ws) < 1024) then
                         break
@@ -501,8 +643,9 @@ local function WSWatch (frame_count)
                     ws = comm.ws_receive(config.ws_id)
                 end
                 if fullResponse ~= "" then
+
                     local response = json.parse(fullResponse)
-                    -- printLog("Received: " .. fullResponse)
+                    
                     if response.event == "client-message_full" then
                         if(response.data.clientId == config.name) then
                             setConnectionStatus("Not Connected")
@@ -518,8 +661,9 @@ local function WSWatch (frame_count)
                             return
                         end
                     end
-                    if response.event == "client-message_sent" then
+                    
 
+                    if response.event == "client-message_sent" and current_activity ~= null then
                         current_activity.receive(response.data, config)
                     end
                 end
@@ -554,10 +698,10 @@ setup_window = forms.newform(340, 340 , "Reactvts.com | Join Room", main_cleanup
 picture = forms.pictureBox( setup_window, 0, 0, 340, 90 );
 y = y + 90
 forms.drawRectangle( picture, 0, 0, 600, 50, "#F6E05E", "#F6E05E");
-forms.drawText( picture, 225, 25, "Reactvts v" .. version, "black", "#F6E05E", 40, "Inter", "600", "center", "middle" );
+forms.drawText( picture, 225, 25, "Reactvts v" .. version, "black", "#F6E05E", 40, "Arial", "600", "center", "middle" );
 drawStatus("yellow", "Waiting to Connect...", picture)
 forms.label(setup_window, "Name:", 45, y+3, 40, 20)
-forms.label(setup_window, "(9 Letter Max)", 200, y+3, 120, 20)
+forms.label(setup_window, "(25 Letter Max)", 200, y+3, 120, 20)
 name_text = forms.textbox(setup_window, 0, 100, 20, null, 90, y)
 forms.settext(name_text, config.name)
 y = y + 20
@@ -567,7 +711,7 @@ roomcode_text = forms.textbox(setup_window, 0, 100, 20, null, 90, y)
 forms.settext(roomcode_text, config.roomcode)
 y = y + 20
 forms.label(setup_window, "Volume:", 37, y+3, 52, 20)
-forms.label(setup_window, "(Item Sounds Only)", 200, y+3, 120, 20)
+forms.label(setup_window, "(Not Gameplay Audio)", 200, y+3, 120, 20)
 local volume_drop = forms.dropdown(setup_window, {   
     " 0", 
     " 1", 
@@ -581,45 +725,45 @@ local volume_drop = forms.dropdown(setup_window, {
     " 9",
     "10"
 }, 90, y, 100, 20);
-
+y = y + 20
+forms.label(setup_window, "Streaming On:", 37, y+3, 52, 20)
+local streaming_drop = forms.dropdown(setup_window, {   
+    "VDO.ninja",
+    "Twitch.tv (Name must be twitch username)", 
+}, 90, y, 100, 20);
+forms.settext(streaming_drop, config.streaming)
 y = y + 20
 connect_btn = forms.button(setup_window, button_text, connectTo, 20, y + 3, 300, 20)
 y = y + 25
 
+
+
 -- //forms.textbox(long formhandle, [string caption = nil], [int? width = nil], [int? height = nil], [string boxtype = nil], [int? x = nil], [int? y = nil], [bool multiline = False], [bool fixedwidth = False], [string scrollbars = nil])
 console_window = forms.textbox( setup_window, "", 300, 80, null, 20, y, true, false, "Vertical" );
-
-local function sendShell()
-    print("Sending Shell")
-    current_activity.receive(
-        {["item"] = 'greenShell', ['attacker'] = 'director', ['action'] = 'item', ["name"] = "all"}, config)
-end
-local function sendBanana()
-    print("Sending Banana")
-    current_activity.receive(
-        {["item"] = 'banana', ['attacker'] = 'director', ['action'] = 'item', ["name"] = "all"}, config)
-end
-local function sendLighting()
-    print("Sending lighting")
-    current_activity.receive(
-        {["item"] = 'lightning', ['attacker'] = 'director', ['action'] = 'item', ["name"] = "all"}, config)
-end
-
--- shell_btn = forms.button(setup_window, "Send Shell", sendShell, 20, y + 90, 300, 20)
--- y = y + 25
--- banana_btn = forms.button(setup_window, "Send Banana", sendBanana, 20, y + 90, 300, 20)
--- y = y + 25
--- banana_btn = forms.button(setup_window, "Send LIghthing", sendLighting, 20, y + 90, 300, 20)
 
 
 
 event.onexit(function()
-    forms.destroy(setup_window)
+    print("good bye")
+    print(config.game_mode)
+    if config.game_mode == 'race-director' and 
+    config.name ~= null and 
+    config.roomcode ~= null
+    then
+        saveSession()
+    else 
+        clearSession()
+    end
+    -- forms.destroy(setup_window)
+    forms.destroyall()
 end)
 
 -- END FORM
-
-if(loadConfig()) then
+if loadSession() then
+    printLog("Session Loaded")
+    drawStatus("green", "Connected", picture)
+    clearSession()
+elseif loadConfig() then
     printLog("Config Loaded")
     scanGames()
 else
@@ -635,6 +779,7 @@ else
     loadConfig()    
 end
 
+
 if(config.volume == nil) then
     forms.settext(volume_drop, " 7")
 else
@@ -645,15 +790,14 @@ end
 
 local frame_count = 0
 
-if config.name ~= "" and config.roomcode ~= "" then
+if config.name ~= "" and config.roomcode ~= "" and config.ws_id == null and config.ws_lobby_id then
     connectToLobbyWSS()
 end
 
-current_activity = video_armageddon
-config.current_game = "mario3"
-
-
 while true do
+    if forms.gettext(volume_drop) == null or forms.gettext(volume_drop) == "" then
+        return
+    end
     frame_count = frame_count + 1
     if(forms.gettext(volume_drop) / 10 ~= config.volume) then
         config.volume = forms.gettext(volume_drop) / 10
@@ -664,19 +808,30 @@ while true do
         config.name = forms.gettext(name_text)
         saveConfig()
     end
-    
 
+    if(forms.gettext(streaming_drop) ~= config.streaming) then
+        config.streaming = forms.gettext(streaming_drop)
+        saveConfig()
+    end
+    
+    
+    
     if config.ws_id ~= null then
         WSWatch(frame_count)
-        if config.connection_status == "subscribed" then
+        if config.connection_status == "subscribed" and current_activity ~= null then
            current_activity.frame(frame_count, config)
         end
     elseif config.ws_lobby_id ~= null and config.ws_id == null then
         WSLobbyWatch(frame_count)
     end 
         
-    
-	emu.frameadvance()
+    if paused == false then
+        client.unpause()
+        emu.frameadvance()
+    else 
+        client.pause()
+        emu.yield()
+    end
 end
 
 

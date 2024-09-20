@@ -641,8 +641,6 @@ function activity.receive(data)
 
 	end
 	if game_mode == '89' then
-
-	
 		if(data.name == 'all' or data.name == config.name) then
 			if data.action == "memory" then
 				client.pause()
